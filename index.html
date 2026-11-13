@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
 <title>駐車練習シミュレーター</title>
 <style>
 :root{
@@ -93,6 +95,62 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--te
 #breakdown .neg{color:#ff8080}
 #tips{margin-top:12px;font-size:13px;color:#cfd6e0;line-height:1.7}
 @media (max-width:760px){ #help{display:none} }
+
+/* ===== タッチ操作 ===== */
+#touchUI, #touchTools, .touch-only, #rotateHint{display:none}
+body.touch{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+body.touch #touchUI, body.touch #touchTools{display:block}
+body.touch .touch-only{display:block}
+body.touch .keys-only, body.touch #help{display:none}
+.tbtn{font:inherit;color:#fff;background:rgba(20,26,36,.82);border:1px solid rgba(255,255,255,.22);border-radius:12px;
+  touch-action:none;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.tbtn.down{background:var(--accent);color:#141414;border-color:var(--accent)}
+#tWheel{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));
+  width:min(38vh,170px,44vw);height:min(38vh,170px,44vw);z-index:8;touch-action:none;border-radius:50%;
+  background:radial-gradient(circle, rgba(0,0,0,.05) 55%, rgba(0,0,0,.35) 56%)}
+#tWheel svg{width:100%;height:100%;display:block;pointer-events:none}
+#tWheel.active{filter:drop-shadow(0 0 10px rgba(255,138,42,.7))}
+#tPedals{position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:8;
+  display:grid;grid-template-columns:auto auto;grid-template-rows:1fr 1fr;gap:8px}
+#tPedals .tbtn{width:min(19vh,84px,22vw);font-size:15px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+#tPedals .tbtn small{font-size:10px;font-weight:500;opacity:.8}
+#tFwd,#tRev{height:min(19vh,80px)}
+#tBrake{grid-row:1 / span 2;grid-column:1;background:rgba(120,20,20,.85)}
+#tBrake.down{background:#ff4d4d;color:#fff}
+#tSlow{position:fixed;right:calc(10px + env(safe-area-inset-right));z-index:8;
+  bottom:calc(10px + env(safe-area-inset-bottom) + min(38vh,168px) + 16px);padding:6px 10px;font-size:12px}
+#tSlow.on{background:#3ddc84;color:#111;border-color:#3ddc84}
+#touchTools{position:fixed;left:50%;transform:translateX(-50%);z-index:8;display:none;white-space:nowrap}
+#touchTools .tbtn{padding:6px 10px;font-size:12px;margin:0 2px}
+body.touch #touchTools{display:block;top:calc(8px + min(300px,30vw)/3.4 + 6px)}
+/* タッチ時のレイアウト（ミラーを上段に寄せる） */
+body.touch #mRear{top:8px;width:min(300px,30vw)}
+body.touch .door{top:8px;width:min(230px,21vw)}
+body.touch #mLeft{left:calc(8px + env(safe-area-inset-left))}
+body.touch #mRight{right:calc(8px + env(safe-area-inset-right))}
+body.touch #stats{top:calc(8px + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));font-size:11px;line-height:1.5;
+  min-width:0;padding:6px 8px}
+body.touch #gearbox{top:calc(8px + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right));padding:6px 10px;gap:8px}
+body.touch #speed{font-size:22px}
+body.touch #camname{display:none}
+body.touch .gears{flex-direction:row;font-size:12px}
+body.touch .gears div{width:20px}
+body.touch #wheelbox{display:none}
+body.touch #backMon{width:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
+body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 46px);font-size:12px;padding:5px 12px}
+body.touch #toast{font-size:18px}
+#tSonar{display:none}
+body.touch #tSonar{display:block;width:26px;height:42px}
+body.touch.portrait .door{width:27vw}
+body.touch.portrait #mRear{width:36vw}
+body.touch.portrait #touchTools{white-space:normal;width:98vw;text-align:center;top:calc(8px + 18vw + 6px)}
+body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 7px;font-size:11px}
+body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + 18vw + 46px)}
+body.touch.portrait #stats{top:calc(8px + 18vw + 86px)}
+body.touch.portrait #gearbox{top:calc(8px + 18vw + 86px)}
+@media (max-height:500px){ .card{padding:14px 16px} .card h1{font-size:19px} .opt{margin:8px 0} .seg button{padding:6px} .bigbtn{margin-top:10px;padding:10px} }
+body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(40vh,170px) + 24px);transform:translateX(-50%);
+  z-index:9;background:rgba(20,26,36,.9);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -153,11 +211,39 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--te
 <div id="msg" style="opacity:0"></div>
 <div id="toast">接触！</div>
 
+<!-- ===== タッチ操作（スマホ・タブレット） ===== -->
+<div id="touchUI">
+  <div id="tWheel">
+    <svg viewBox="-50 -50 100 100"><g id="tWheelG">
+      <circle r="44" fill="none" stroke="#dfe5ee" stroke-width="9"/>
+      <circle r="12" fill="#dfe5ee"/>
+      <rect x="-44" y="-3.5" width="88" height="7" fill="#dfe5ee"/>
+      <rect x="-3.5" y="0" width="7" height="44" fill="#dfe5ee"/>
+      <rect x="-5" y="-50" width="10" height="12" rx="2" fill="#ff8a2a"/>
+    </g></svg>
+  </div>
+  <div id="tPedals">
+    <button class="tbtn" id="tBrake" data-hold="Space">■<small>ブレーキ</small></button>
+    <button class="tbtn" id="tFwd" data-hold="KeyW">▲<small>前進 D</small></button>
+    <button class="tbtn" id="tRev" data-hold="KeyS">▼<small>後退 R</small></button>
+  </div>
+  <button class="tbtn" id="tSlow">🐢 微速</button>
+  <svg id="tSonar" viewBox="0 0 74 120"></svg>
+</div>
+<div id="touchTools">
+  <button class="tbtn" data-act="KeyC">📷 カメラ</button>
+  <button class="tbtn" data-act="Enter">✅ 完了</button>
+  <button class="tbtn" data-act="KeyR">↺ やり直し</button>
+  <button class="tbtn" data-act="KeyH">🪞 ミラー</button>
+  <button class="tbtn" data-act="Escape">⚙ 設定</button>
+</div>
+<div id="rotateHint">📱 横向きにすると遊びやすくなります</div>
+
 <!-- ===== Menu ===== -->
 <div class="overlay" id="menu">
   <div class="card">
     <h1>🚗 駐車練習シミュレーター</h1>
-    <p class="sub">ドアミラー・ルームミラー・バックモニターを見ながら、キーボード（WASD）で駐車を練習しよう。</p>
+    <p class="sub">ドアミラー・ルームミラー・バックモニターを見ながら、<span class="keys-only" style="display:inline">キーボード（WASD）</span><span class="touch-only" style="display:none" id="subTouch">画面のハンドルとペダル</span>で駐車を練習しよう。</p>
 
     <div class="opt" data-key="mode"><label>駐車タイプ</label><div class="seg">
       <button data-v="back">バック駐車<small>後ろ向きで枠に入れる</small></button>
@@ -200,7 +286,12 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--te
 
     <button class="bigbtn" id="startBtn">スタート（Enter）</button>
 
-    <div class="keys">
+    <div class="keys touch-only">
+      <b>タッチ操作</b>：左下のハンドルを指で回す／右下の ▲ 前進・▼ 後退・■ ブレーキを押している間だけ動きます。<br>
+      🐢 微速で速度を抑えられます。2本指のピンチで俯瞰の拡大・縮小。<br>
+      枠内で停止したら上部の「✅ 完了」で採点。「📷 カメラ」で視点切替。横向き推奨です。
+    </div>
+    <div class="keys keys-only">
       <kbd>W</kbd> 前進（D）／後退中はブレーキ　<kbd>S</kbd> 後退（R）／前進中はブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル<br>
       <kbd>Space</kbd> ブレーキ　<kbd>Shift</kbd> 押しながらで微速　<kbd>C</kbd> カメラ切替　<kbd>Q</kbd><kbd>E</kbd><kbd>V</kbd> 目視確認（運転席視点）<br>
       停止して枠に収まったら <kbd>Enter</kbd> で採点。　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置　<kbd>Esc</kbd> この画面
@@ -266,7 +357,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.75));
 const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(20, 40, 12); scene.add(sun);
 
 const mainR = new THREE.WebGLRenderer({ canvas: $('#main'), antialias: true });
-mainR.setPixelRatio(Math.min(devicePixelRatio, 2));
+mainR.setPixelRatio(Math.min(devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.5 : 2));
 function mkRenderer(id){
   const r = new THREE.WebGLRenderer({ canvas: $(id + ' canvas'), antialias: true });
   r.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -594,14 +685,17 @@ addEventListener('keydown', e => {
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   if (e.repeat) return;
-  if (game === 'menu') { if (e.code === 'Enter') startGame(); return; }
+  handleKey(e.code);
+});
+function handleKey(code){
+  if (game === 'menu') { if (code === 'Enter') startGame(); return; }
   if (game === 'result') {
-    if (e.code === 'Enter' || e.code === 'KeyR') resetPlayer();
-    else if (e.code === 'KeyN') buildLevel();
-    else if (e.code === 'Escape') openMenu();
+    if (code === 'Enter' || code === 'KeyR') resetPlayer();
+    else if (code === 'KeyN') buildLevel();
+    else if (code === 'Escape') openMenu();
     return;
   }
-  switch (e.code) {
+  switch (code) {
     case 'KeyC': camIdx = (camIdx + 1) % CAM_MODES.length; break;
     case 'KeyR': resetPlayer(); break;
     case 'KeyN': buildLevel(); break;
@@ -611,10 +705,68 @@ addEventListener('keydown', e => {
     case 'KeyG': S.guide = !S.guide; saveSettings(); showToastInfo(S.guide ? '軌跡ガイド ON' : '軌跡ガイド OFF'); break;
     case 'KeyH': S.showMirrors = !S.showMirrors; document.body.classList.toggle('hidden-mirrors', !S.showMirrors); break;
   }
-});
+}
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 addEventListener('wheel', e => { zoom = clamp(zoom * (1 + e.deltaY*0.001), 6, 45); }, { passive:true });
+
+// ---------------- タッチ操作 ----------------
+const IS_TOUCH = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window || /[?&]touch\b/.test(location.search);
+if (IS_TOUCH) { document.body.classList.add('touch'); $('#gearbox').appendChild($('#tSonar')); }
+const touchSteer = { active:false, id:null, lastAng:0, cwDeg:0 };
+let slowToggle = false;
+function updateOrientation(){ document.body.classList.toggle('portrait', innerHeight > innerWidth); }
+updateOrientation();
+document.addEventListener('pointerdown', ensureAudio, { capture:true });
+document.addEventListener('touchend', ensureAudio, { capture:true });
+// 長押しメニュー・ダブルタップズーム・スクロールを抑止
+document.addEventListener('contextmenu', e => { if (IS_TOUCH) e.preventDefault(); });
+document.addEventListener('touchmove', e => { if (!e.target.closest('.card')) e.preventDefault(); }, { passive:false });
+// ハンドル（指で回す）
+(function(){
+  const el = $('#tWheel');
+  const angOf = e => { const r = el.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2)) / D2R; };
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (touchSteer.active) return;
+    try { el.setPointerCapture(e.pointerId); } catch(_) {}
+    touchSteer.active = true; touchSteer.id = e.pointerId; touchSteer.lastAng = angOf(e);
+    touchSteer.cwDeg = st ? -st.delta / C.maxSteer * 540 : 0;
+    el.classList.add('active');
+  });
+  el.addEventListener('pointermove', e => {
+    if (!touchSteer.active || e.pointerId !== touchSteer.id) return;
+    const a = angOf(e); let d = a - touchSteer.lastAng;
+    if (d > 180) d -= 360; if (d < -180) d += 360;
+    touchSteer.lastAng = a;
+    touchSteer.cwDeg = clamp(touchSteer.cwDeg + d, -540, 540);
+  });
+  const end = e => { if (e.pointerId !== touchSteer.id) return; touchSteer.active = false; touchSteer.id = null; el.classList.remove('active'); };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+})();
+// ペダル（押している間だけ）
+document.querySelectorAll('[data-hold]').forEach(b => {
+  const k = b.dataset.hold;
+  const on = e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch(_) {} keys['T' + k] = true; b.classList.add('down'); if (navigator.vibrate) navigator.vibrate(8); };
+  const off = () => { keys['T' + k] = false; b.classList.remove('down'); };
+  b.addEventListener('pointerdown', on);
+  b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+});
+$('#tSlow').addEventListener('click', () => { slowToggle = !slowToggle; $('#tSlow').classList.toggle('on', slowToggle); });
+document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => handleKey(b.dataset.act)));
+// 2本指ピンチでズーム
+(function(){
+  const pts = new Map(); let base = 0, baseZoom = zoom;
+  const cv = $('#main');
+  const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  cv.addEventListener('pointerdown', e => { pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); if (pts.size === 2) { base = dist(); baseZoom = zoom; } });
+  cv.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (pts.size === 2 && base > 0) zoom = clamp(baseZoom * base / dist(), 6, 45);
+  });
+  const up = e => { pts.delete(e.pointerId); base = 0; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+})();
 
 // ---------------- 音 ----------------
 let actx = null;
@@ -650,12 +802,13 @@ function setGear(g){
   st.gear = g;
 }
 function physics(dt){
-  const fwd = isDown('KeyW','ArrowUp'), back = isDown('KeyS','ArrowDown'), brake = isDown('Space');
-  const left = isDown('KeyA','ArrowLeft'), right = isDown('KeyD','ArrowRight'), slow = isDown('ShiftLeft','ShiftRight');
+  const fwd = isDown('KeyW','ArrowUp','TKeyW'), back = isDown('KeyS','ArrowDown','TKeyS'), brake = isDown('Space','TSpace');
+  const left = isDown('KeyA','ArrowLeft'), right = isDown('KeyD','ArrowRight'), slow = slowToggle || isDown('ShiftLeft','ShiftRight');
   // ハンドル
   const steerIn = (left ? 1 : 0) - (right ? 1 : 0);
   const rate = C.maxSteer / 0.9;
-  if (steerIn) st.delta += steerIn*rate*dt;
+  if (touchSteer.active) st.delta = -touchSteer.cwDeg / 540 * C.maxSteer;
+  else if (steerIn) st.delta += steerIn*rate*dt;
   else if (S.autoCenter) { const r = 0.28*Math.abs(st.v)*dt; st.delta -= Math.sign(st.delta)*Math.min(Math.abs(st.delta), r); }
   st.delta = clamp(st.delta, -C.maxSteer, C.maxSteer);
   // アクセル / ブレーキ
@@ -710,6 +863,7 @@ function sonarColor(d){ return d < 0.35 ? '#ff3b3b' : d < 0.6 ? '#ff8c1a' : d < 
   mk($('#sonarF'), 'M10 22 Q12 12 20 9', 0); mk($('#sonarF'), 'M27 8 Q37 5 47 8', 1); mk($('#sonarF'), 'M54 9 Q62 12 64 22', 2);
   mk($('#sonarR'), 'M10 98 Q12 108 20 111', 3); mk($('#sonarR'), 'M27 112 Q37 115 47 112', 4); mk($('#sonarR'), 'M54 111 Q62 108 64 98', 5);
 })();
+$('#tSonar').innerHTML = $('#sonar').innerHTML.replace(/id="(son\d)"/g, 'id="t$1"').replace(/id="sonar([FR])"/g, 'id="tsonar$1"');
 let beepT = 0;
 
 // ---------------- 判定 ----------------
@@ -828,16 +982,17 @@ function updateHUD(ev, son){
   $('#wheel').setAttribute('transform', `rotate(${-wheelDeg})`);
   const tire = st.delta / D2R;
   $('#wheelInfo').textContent = `タイヤ ${Math.abs(tire).toFixed(0)}° ${tire > 0.5 ? '左' : tire < -0.5 ? '右' : ''}`;
-  son.forEach((d, i) => { const p = $('#son' + i); if (p) p.setAttribute('stroke', sonarColor(d)); });
+  son.forEach((d, i) => { const c = sonarColor(d); const p = $('#son' + i); if (p) p.setAttribute('stroke', c); const q = $('#tson' + i); if (q) q.setAttribute('stroke', c); });
+  if (IS_TOUCH) $('#tWheelG').setAttribute('transform', `rotate(${-wheelDeg})`);
   $('#backMon').classList.toggle('on', st.gear === 'R');
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
   else if (game !== 'play') showMsg('', '');
-  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg('✅ 枠に収まりました！ Enter で駐車完了', 'ok');
-  else if (ev.ready) showMsg('枠内です。停止してください（Space）', 'ok');
+  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '✅ 枠に収まりました！「完了」で採点' : '✅ 枠に収まりました！ Enter で駐車完了', 'ok');
+  else if (ev.ready) showMsg(IS_TOUCH ? '枠内です。停止してください（ブレーキ）' : '枠内です。停止してください（Space）', 'ok');
   else if (ev.allIn && ev.flipped) showMsg('車の向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度を合わせましょう（ずれ ${Math.abs(ad).toFixed(0)}°）`, 'warn');
-  else if (!st.started) showMsg(S.mode === 'parallel' ? '青い枠に縦列駐車しよう（W で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（W で発進、S で後退）' : '青い枠に前から駐車しよう（W で発進）', '');
+  else if (!st.started) showMsg(IS_TOUCH ? (S.mode === 'parallel' ? '青い枠に縦列駐車しよう（▲で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（▲で発進、▼で後退）' : '青い枠に前から駐車しよう（▲で発進）') : S.mode === 'parallel' ? '青い枠に縦列駐車しよう（W で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（W で発進、S で後退）' : '青い枠に前から駐車しよう（W で発進）', '');
   else showMsg('', '');
 }
 
@@ -928,7 +1083,7 @@ function resize(){
     r.setSize(cw, ch, false); c.aspect = cw / ch; c.updateProjectionMatrix();
   }
 }
-addEventListener('resize', resize);
+addEventListener('resize', () => { resize(); updateOrientation(); });
 
 // ---------------- メインループ ----------------
 let last = performance.now();
@@ -961,6 +1116,8 @@ document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 resize();
 buildLevel();
 game = 'menu';
+if (IS_TOUCH) { document.querySelectorAll('.sub .keys-only').forEach(e => e.style.display = 'none'); $('#subTouch').style.display = 'inline'; }
+if (/[?&]start\b/.test(location.search)) startGame();
 requestAnimationFrame(loop);
 </script>
 </body>
