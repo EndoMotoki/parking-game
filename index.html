@@ -30,10 +30,25 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--te
 .door{top:38%;width:min(270px,24vw);aspect-ratio:1.5/1}
 #mLeft{left:12px;border-radius:14px 26px 26px 40px}
 #mRight{right:12px;border-radius:26px 14px 40px 26px}
-#backMon{bottom:12px;left:50%;transform:translateX(-50%);width:min(420px,34vw);aspect-ratio:1.6/1;border-radius:8px;
-  border-color:#333;opacity:0;transition:opacity .2s;pointer-events:none}
-#backMon.on{opacity:1}
-.hidden-mirrors .mirror:not(#backMon){display:none}
+/* バック時の表示（アラウンドビュー＋バックモニター） */
+#rearView{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:5;
+  opacity:0;transition:opacity .2s;pointer-events:none;--bmw:min(420px,34vw)}
+#rearView.on{opacity:1}
+#rearView .mirror{position:relative;border-radius:8px;border-color:#333}
+#backMon{width:var(--bmw);aspect-ratio:1.6/1}
+#avm{height:calc(var(--bmw) / 1.6);aspect-ratio:0.62/1}
+#avm canvas{transform:none}
+#rearView.noavm #avm{display:none}
+.hidden-mirrors .mirror.door, .hidden-mirrors #mRear{display:none}
+/* リザルト画面：背景で俯瞰リプレイ */
+body.resultView .mirror, body.resultView #rearView, body.resultView #stats, body.resultView #help, body.resultView #gearbox,
+body.resultView #wheelbox, body.resultView #touchUI, body.resultView #touchTools, body.resultView #msg, body.resultView #cockpit,
+body.resultView #mirrorPad, body.resultView #rotateHint{display:none !important}
+#replayLabel{display:none;position:fixed;left:14px;top:12px;z-index:21;background:rgba(16,20,28,.8);border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;font-size:12px}
+body.resultView #replayLabel{display:block}
+#replayLabel i{font-style:normal;color:#48d6ff}
+#replayLabel b{font-weight:400;color:#ff8a2a}
 .panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;z-index:6;
   backdrop-filter:blur(6px)}
 #stats{top:10px;left:12px;font-size:13px;line-height:1.7;min-width:190px}
@@ -67,6 +82,11 @@ html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--te
 .card{background:#141a24;border:1px solid var(--line);border-radius:16px;padding:22px 24px;width:min(640px,100%);
   max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
 .card h1{margin:0 0 4px;font-size:24px}
+#result{background:linear-gradient(90deg, rgba(6,9,14,0) 35%, rgba(6,9,14,.6));backdrop-filter:none;justify-content:flex-end}
+@media (orientation:portrait){
+  #result{background:linear-gradient(180deg, rgba(6,9,14,0) 30%, rgba(6,9,14,.6));align-items:flex-end;justify-content:center}
+  #result .card{max-height:58vh}
+}
 .card .sub{margin:0 0 16px;color:var(--muted);font-size:13px}
 .opt{margin:12px 0}
 .opt>label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -136,7 +156,7 @@ body.touch #camname{display:none}
 body.touch .gears{flex-direction:row;font-size:12px}
 body.touch .gears div{width:20px}
 body.touch #wheelbox{display:none}
-body.touch #backMon{width:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
+body.touch #rearView{--bmw:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
 body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 46px);font-size:12px;padding:5px 12px}
 body.touch #toast{font-size:18px}
 .pad-only{display:none}
@@ -151,7 +171,7 @@ body.driver:not(.touch) #cockpit{display:block}
   border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;white-space:nowrap}
 #cockpitInfo.center{border-color:var(--ok);color:var(--ok)}
 body.driver:not(.touch) #wheelbox{display:none}
-body.driver:not(.touch) #backMon{left:auto;right:12px;transform:none;width:min(340px,28vw)}
+body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(300px,24vw)}
 /* ドアミラー調整パネル */
 .mirror.door{cursor:pointer}
 .mirror.door.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 4px 18px rgba(0,0,0,.55)}
@@ -186,7 +206,11 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
 <div class="mirror" id="mRear"><canvas></canvas><span>ルームミラー</span></div>
 <div class="mirror door" id="mLeft"><canvas></canvas><span>左ドアミラー</span></div>
 <div class="mirror door" id="mRight"><canvas></canvas><span>右ドアミラー</span></div>
-<div class="mirror" id="backMon"><canvas></canvas><span>バックモニター</span></div>
+<div id="rearView">
+  <div class="mirror" id="avm"><canvas></canvas><span>アラウンドビュー</span></div>
+  <div class="mirror" id="backMon"><canvas></canvas><span>バックモニター</span></div>
+</div>
+<div id="replayLabel">▶ 俯瞰リプレイ ×<span id="replaySpeed">3</span>　<i>━ 前進</i>　<b>━ 後退</b></div>
 
 <div class="panel" id="stats">
   <div class="t" id="modeLabel">-</div>
@@ -340,6 +364,7 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
       <label><input type="checkbox" id="o-highlight" checked> 目標の枠をハイライト</label>
       <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
       <label><input type="checkbox" id="o-mirrorTilt" checked> リバース連動ミラー（下向き）</label>
+      <label><input type="checkbox" id="o-avm" checked> アラウンドビュー（R時）</label>
       <label><input type="checkbox" id="o-sound" checked> 障害物センサー音</label>
     </div></div>
 
@@ -413,7 +438,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
@@ -432,7 +457,14 @@ function mkRenderer(id){
   r.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   return r;
 }
-const rL = mkRenderer('#mLeft'), rR = mkRenderer('#mRight'), rM = mkRenderer('#mRear'), rB = mkRenderer('#backMon');
+const rL = mkRenderer('#mLeft'), rR = mkRenderer('#mRight'), rM = mkRenderer('#mRear'), rB = mkRenderer('#backMon'), rA = mkRenderer('#avm');
+const avmCam = new THREE.OrthographicCamera(-3, 3, 4, -4, 0.1, 80);
+avmCam.layers.enable(1); avmCam.layers.enable(4);
+function setAvmFrustum(){
+  const el = $('#avm canvas'), asp = (el.clientWidth || 62) / (el.clientHeight || 100);
+  const hh = (C ? C.len : 4.6)/2 + 2.4;   // 車の前後 約2.4m まで表示
+  avmCam.top = hh; avmCam.bottom = -hh; avmCam.right = hh*asp; avmCam.left = -hh*asp; avmCam.updateProjectionMatrix();
+}
 
 const mainCam = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
 const driverCam = new THREE.PerspectiveCamera(68, 1, 0.05, 400); driverCam.rotation.order = 'YXZ';
@@ -719,7 +751,9 @@ let st = null;   // 車両状態（x,z は後軸中心）
 function resetPlayer(){
   const sp = level.spawn;
   st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, hits:0, curbs:0, touching:false,
-         time:0, started:false, mirrorPitch:-0.1, lookYaw:0 };
+         time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[] };
+  recT = 0;
+  endReplay();
   game = 'play';
   $('#result').classList.add('off');
   showMsg('', '');
@@ -727,6 +761,7 @@ function resetPlayer(){
 function buildLevel(){
   clearWorld();
   C = CARS[S.car];
+  setAvmFrustum();
   level = S.mode === 'parallel' ? buildParallel() : buildBay();
   // 目標枠ハイライト
   const t = level.target;
@@ -1128,6 +1163,7 @@ function showResult(ev){
   $('#breakdown').innerHTML = rows.map(([l, v, p]) => `<tr><td>${l}</td><td>${v}</td><td class="${p ? 'neg' : ''}">${p ? '−' + p : '±0'}</td></tr>`).join('');
   $('#tips').innerHTML = tips.map(t => '💡 ' + t).join('<br>');
   $('#result').classList.remove('off');
+  startReplay();
   tone(660, 0.15, 0.08); setTimeout(() => tone(880, 0.25, 0.08), 150);
 }
 
@@ -1150,18 +1186,19 @@ function openMenu(){
   game = 'menu';
   $('#result').classList.add('off');
   $('#menu').classList.remove('off');
+  if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
   syncMenu();
 }
 function syncMenu(){
   document.querySelectorAll('.opt[data-key]').forEach(o => {
     o.querySelectorAll('button').forEach(b => b.classList.toggle('on', S[o.dataset.key] === b.dataset.v));
   });
-  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound']) $('#o-' + k).checked = S[k];
+  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).checked = S[k];
 }
 document.querySelectorAll('.opt[data-key]').forEach(o => {
   o.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S[o.dataset.key] = b.dataset.v; syncMenu(); saveSettings(); }));
 });
-for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
+for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
 function startGame(){
   ensureAudio();
   camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
@@ -1198,7 +1235,8 @@ function updateHUD(ev, son){
     ci.textContent = straight ? 'タイヤ まっすぐ' : `タイヤ ${Math.abs(tire).toFixed(0)}° ${tire > 0 ? '左' : '右'}　（ハンドル ${Math.abs(wheelDeg).toFixed(0)}°）`;
     ci.classList.toggle('center', straight);
   }
-  $('#backMon').classList.toggle('on', st.gear === 'R');
+  $('#rearView').classList.toggle('on', st.gear === 'R');
+  if ($('#rearView').classList.contains('noavm') === S.avm) { $('#rearView').classList.toggle('noavm', !S.avm); resize(); }
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
   else if (game !== 'play') showMsg('', '');
@@ -1209,6 +1247,60 @@ function updateHUD(ev, son){
   else if (predHit) showMsg(`⚠ このまま${st.gear === 'R' ? '下がる' : '進む'}と${predHit.side}${predHit.part}が接触します（あと${predHit.dist.toFixed(1)}m）`, 'warn');
   else if (!st.started) showMsg(IS_TOUCH ? (S.mode === 'parallel' ? '青い枠に縦列駐車しよう（▲で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（▲で発進、▼で後退）' : '青い枠に前から駐車しよう（▲で発進）') : S.mode === 'parallel' ? '青い枠に縦列駐車しよう（W で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（W で発進、S で後退）' : '青い枠に前から駐車しよう（W で発進）', '');
   else showMsg('', '');
+}
+
+// ---------------- 俯瞰リプレイ（リザルト画面の背景） ----------------
+const REC_DT = 0.05;
+let recT = 0, replay = null, trailMesh = null;
+function startReplay(){
+  const frames = st.rec.slice();
+  frames.push([st.x, st.z, st.h, st.delta, 0]);
+  if (frames.length < 2) frames.unshift(frames[0]);
+  const dur = (frames.length - 1) * REC_DT;
+  const speed = Math.max(2, Math.min(8, dur / 12));   // だいたい12秒以内に収まる速さ
+  // 走った範囲全体（＋余白）が画面に収まるように
+  const cxs = frames.map(f => f[0] + Math.sin(f[2])*C.cOff), czs = frames.map(f => f[1] + Math.cos(f[2])*C.cOff);
+  const bounds = { x0:Math.min(...cxs) - 3.5, x1:Math.max(...cxs) + 3.5, z0:Math.min(...czs) - 3.5, z1:Math.max(...czs) + 3.5 };
+  replay = { frames, t:0, speed, hold:2.5, bounds };
+  $('#replaySpeed').textContent = speed.toFixed(speed < 10 && speed % 1 ? 1 : 0);
+  // 軌跡（車の中心）を色分け：前進=水色、後退=オレンジ
+  const N = frames.length;
+  const pos = new Float32Array(N*2*3), col = new Float32Array(N*2*3), idx = [];
+  const cF = new THREE.Color(0x48d6ff), cR = new THREE.Color(0xff8a2a);
+  const pts = frames.map(f => [f[0] + Math.sin(f[2])*C.cOff, f[1] + Math.cos(f[2])*C.cOff]);
+  for (let i = 0; i < N; i++) {
+    const p = pts[i], q = pts[Math.min(i+1, N-1)], o = pts[Math.max(i-1, 0)];
+    let dx = q[0] - o[0], dz = q[1] - o[1]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    const w = 0.09, nx = -dz*w, nz = dx*w;
+    pos.set([p[0] + nx, 0.05, p[1] + nz, p[0] - nx, 0.05, p[1] - nz], i*6);
+    const c = frames[i][4] ? cR : cF;
+    col.set([c.r, c.g, c.b, c.r, c.g, c.b], i*6);
+    if (i < N - 1) { const a = i*2; idx.push(a, a+1, a+2, a+1, a+3, a+2); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(idx); g.setDrawRange(0, 0);
+  trailMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors:true, transparent:true, opacity:0.9, depthWrite:false, side:THREE.DoubleSide }));
+  trailMesh.layers.set(6); trailMesh.frustumCulled = false; trailMesh.renderOrder = 4;
+  scene.add(trailMesh);
+  st.gear = 'P';
+  document.body.classList.add('resultView');
+}
+function stepReplay(dt){
+  const r = replay, N = r.frames.length, end = (N - 1) * REC_DT;
+  r.t += dt * r.speed;
+  if (r.t > end + r.hold * r.speed) r.t = 0;
+  const tt = Math.min(r.t, end), k = Math.min(N - 2, Math.floor(tt / REC_DT)), a = (tt - k*REC_DT) / REC_DT;
+  const f0 = r.frames[k], f1 = r.frames[k + 1];
+  st.x = f0[0] + (f1[0] - f0[0])*a; st.z = f0[1] + (f1[1] - f0[1])*a;
+  st.h = f0[2] + wrapAng(f1[2] - f0[2])*a; st.delta = f0[3] + (f1[3] - f0[3])*a;
+  if (trailMesh) trailMesh.geometry.setDrawRange(0, Math.min(N - 1, k + 1) * 6);
+}
+function endReplay(){
+  replay = null;
+  if (trailMesh) { scene.remove(trailMesh); trailMesh.geometry.dispose(); trailMesh.material.dispose(); trailMesh = null; }
+  document.body.classList.remove('resultView');
 }
 
 // ---------------- 描画・カメラ ----------------
@@ -1254,6 +1346,7 @@ function predictHit(dir){
 }
 let predHit = null;
 function updateScene(dt){
+  if (game === 'result' && replay) stepReplay(dt);
   const fx = Math.sin(st.h), fz = Math.cos(st.h);
   const cx = st.x + fx*C.cOff, cz = st.z + fz*C.cOff;
   player.position.set(cx, 0, cz); player.rotation.y = st.h;
@@ -1283,6 +1376,19 @@ function updateScene(dt){
   // 接触予測（ガイドON & ギアが R/D のとき）
   predHit = (S.guide && (st.gear === 'R' || st.gear === 'D')) ? predictHit(st.gear === 'R' ? -1 : 1) : null;
   for (const [m, c] of PATH_COLORS) m.material.color.setHex(predHit ? 0xff3b3b : c);
+  // アラウンドビュー（真上から、車の前が上）
+  avmCam.position.set(cx, 25, cz); avmCam.up.set(fx, 0, fz); avmCam.lookAt(cx, 0, cz);
+  // リザルト：俯瞰リプレイ用カメラ（カードと重ならないよう車を左／上に寄せる）
+  if (game === 'result' && replay) {
+    const b = replay.bounds, land = innerWidth > innerHeight, tn = Math.tan(mainCam.fov*D2R/2), asp = mainCam.aspect;
+    const spanX = b.x1 - b.x0, spanZ = b.z1 - b.z0;   // 画面の上下 = x、左右 = z
+    // 横画面: 左 60% に収める / 縦画面: 上 60% に収める
+    const H = Math.max(10, land ? Math.max(spanX / (2*tn), spanZ / (2*tn*asp*0.6)) : Math.max(spanX / (2*tn*0.6), spanZ / (2*tn*asp)));
+    const visH = 2*H*tn, visW = visH*asp, mx = (b.x0 + b.x1)/2, mz = (b.z0 + b.z1)/2;
+    const lx = land ? mx : mx - 0.2*visH, lz = land ? mz + 0.2*visW : mz;
+    mainCam.up.set(1, 0, 0); mainCam.position.set(lx, H, lz); mainCam.lookAt(lx, 0, lz);
+    return 'replay';
+  }
   // メインカメラ
   const mode = CAM_MODES[camIdx];
   if (mode === 'top' || mode === 'topRot') {
@@ -1303,6 +1409,12 @@ function render(mode, ev){
   const u = player.userData;
   targetMesh.visible = S.highlight;
   targetMesh.material.color.setHex(ev.ready ? 0x3ddc84 : ev.allIn ? 0xffd23f : 0x2fa8ff);
+  if (mode === 'replay') {
+    targetMesh.material.color.setHex(0x3ddc84);
+    mainCam.layers.set(0); mainCam.layers.enable(6);
+    mainR.render(scene, mainCam);
+    return;
+  }
   const cam = mode === 'driver' ? driverCam : mainCam;
   cam.layers.set(0);
   if (S.guide && st.gear === 'R') { cam.layers.enable(1); cam.layers.enable(4); }
@@ -1316,7 +1428,12 @@ function render(mode, ev){
     rM.render(scene, camRear);
     targetMesh.visible = S.highlight;
   }
-  if (st.gear === 'R') { targetMesh.visible = false; rB.render(scene, camBack); targetMesh.visible = S.highlight; }
+  if (st.gear === 'R') {
+    targetMesh.visible = false;
+    rB.render(scene, camBack);
+    if (S.avm) rA.render(scene, avmCam);
+    targetMesh.visible = S.highlight;
+  }
 }
 function resize(){
   const w = innerWidth, h = innerHeight;
@@ -1331,6 +1448,7 @@ function resize(){
     const cw = el.clientWidth || 200, ch = el.clientHeight || 120;
     r.setSize(cw, ch, false); c.aspect = cw / ch; c.updateProjectionMatrix();
   }
+  const ac = $('#avm canvas'); rA.setSize(ac.clientWidth || 62, ac.clientHeight || 100, false); setAvmFrustum();
 }
 addEventListener('resize', () => { resize(); updateOrientation(); });
 
@@ -1344,7 +1462,11 @@ function loop(t){
   if (game === 'play') {
     const n = Math.ceil(dt / (1/120));
     for (let i = 0; i < n; i++) physics(dt / n);
-    if (st.started) st.time += dt;
+    if (st.started) {
+      st.time += dt;
+      recT += dt;
+      if (recT >= REC_DT && st.rec.length < 12000) { recT = 0; st.rec.push([st.x, st.z, st.h, st.delta, st.v < -0.01 ? 1 : 0]); }
+    }
   }
   const mode = updateScene(dt);
   const ev = evaluate();
