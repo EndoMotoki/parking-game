@@ -139,6 +139,8 @@ body.touch #wheelbox{display:none}
 body.touch #backMon{width:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
 body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 46px);font-size:12px;padding:5px 12px}
 body.touch #toast{font-size:18px}
+.pad-only{display:none}
+body.gamepad .pad-only{display:inline}
 #tSonar{display:none}
 body.touch #tSonar, body.driver:not(.touch) #tSonar{display:block;width:26px;height:42px}
 /* 運転席視点のハンドル */
@@ -200,6 +202,7 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
   <kbd>Shift</kbd>+移動 微速　<kbd>C</kbd> カメラ切替<br>
   <kbd>Q</kbd>/<kbd>E</kbd> 左右目視　<kbd>V</kbd> 後方目視（運転席）<br>
   <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置<br>
+  <span class="pad-only">🎮 ZR 前進・ZL 後退・B ブレーキ・Lスティック ハンドル<br>A 完了・X カメラ・Y ミラー調整・− やり直し・+ 設定<br></span>
   <kbd>U</kbd> ミラー調整（ミラーをクリックでも可）<br>
   <kbd>G</kbd> 軌跡ガイド　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音　<kbd>Esc</kbd> 設定
 </div>
@@ -348,6 +351,12 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
       軌跡: 黄=後ろの角、橙=前の振り出し、水色=前の角、紫=内輪差、赤=このままだと接触。<br>
       🐢 微速で速度を抑えられます。2本指のピンチで俯瞰の拡大・縮小。<br>
       枠内で停止したら上部の「✅ 完了」で採点。「📷 カメラ」で視点切替。横向き推奨です。
+    </div>
+    <div class="keys">
+      🎮 <b>Switch プロコン／ゲームパッド</b>（Bluetooth か USB で接続後、ボタンを1回押すと認識）<br>
+      ZR 前進・ZL 後退・B ブレーキ・L 押しながら微速・Lスティック ハンドル（倒した量で切る速さが変わる）<br>
+      A 開始／駐車完了・X カメラ切替・Y ミラー調整（十字キーで角度、L/Rで左右）・− やり直し・+ 設定<br>
+      運転席視点：Rスティック 見回し・R 後方目視／俯瞰：Rスティック上下 ズーム・Rスティック押し込み 新しい配置
     </div>
     <div class="keys keys-only">
       <kbd>W</kbd> 前進（D）／後退中はブレーキ　<kbd>S</kbd> 後退（R）／前進中はブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル<br>
@@ -864,10 +873,10 @@ function updateMirrorAdjust(dt){
   let dy = 0, dp = 0;
   const h = mirrorAdj.hold;
   // ◀ で表示の左側がより見える（＝車の左方向）。左右どちらのミラーでも同じ向き
-  if (isDown('ArrowLeft') || h === 'left') dy -= 1;
-  if (isDown('ArrowRight') || h === 'right') dy += 1;
-  if (isDown('ArrowUp') || h === 'up') dp += 1;
-  if (isDown('ArrowDown') || h === 'down') dp -= 1;
+  if (isDown('ArrowLeft','GLeft') || h === 'left') dy -= 1;
+  if (isDown('ArrowRight','GRight') || h === 'right') dy += 1;
+  if (isDown('ArrowUp','GUp') || h === 'up') dp += 1;
+  if (isDown('ArrowDown','GDown') || h === 'down') dp -= 1;
   if (!dy && !dp) return;
   const m = S.mirror[mirrorAdj.side];
   m.yaw = clamp(m.yaw + dy*MIRROR_RATE*dt, -MIRROR_LIM.yaw, MIRROR_LIM.yaw);
@@ -886,6 +895,43 @@ $('#mClose').addEventListener('click', () => toggleMirrorPad(false));
   if (mirrorAdj.open && mirrorAdj.side === side) { toggleMirrorPad(false); return; }
   mirrorAdj.side = side; toggleMirrorPad(true);
 }));
+
+// ---------------- ゲームパッド（Switch プロコン等） ----------------
+// 標準マッピング（位置基準）: 0=下(B) 1=右(A) 2=左(Y) 3=上(X) 4=L 5=R 6=ZL 7=ZR 8=− 9=+ 12-15=十字キー
+const pad = { connected:false, steer:0, lookX:0, prev:[] };
+const dz = (v, d = 0.15) => Math.abs(v) < d ? 0 : Math.sign(v) * (Math.abs(v) - d) / (1 - d);
+addEventListener('gamepadconnected', e => { showToastInfo('🎮 コントローラーを接続しました'); document.body.classList.add('gamepad'); });
+addEventListener('gamepaddisconnected', () => { showToastInfo('🎮 コントローラーが切断されました'); document.body.classList.remove('gamepad'); });
+function pollGamepad(dt){
+  const list = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = [...list].find(g => g && g.connected);
+  const GK = ['GFwd','GBack','GBrake','GSlow','GLookBack','GUp','GDown','GLeft','GRight'];
+  if (!gp) { if (pad.connected) { GK.forEach(k => keys[k] = false); pad.steer = pad.lookX = 0; } pad.connected = false; return; }
+  pad.connected = true;
+  const b = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5));
+  const edge = i => b(i) && !pad.prev[i];
+  keys.GFwd = b(7);  keys.GBack = b(6);  keys.GBrake = b(0);  keys.GSlow = b(4);  keys.GLookBack = b(5);
+  keys.GUp = b(12); keys.GDown = b(13); keys.GLeft = b(14); keys.GRight = b(15);
+  pad.steer = dz(gp.axes[0] || 0);
+  pad.lookX = CAM_MODES[camIdx] === 'driver' ? dz(gp.axes[2] || 0, 0.2) : 0;
+  const ry = dz(gp.axes[3] || 0, 0.2);
+  if (ry && CAM_MODES[camIdx] !== 'driver') zoom = clamp(zoom * (1 + ry * 1.2 * dt), 6, 45);
+  if (b(0) || b(6) || b(7)) ensureAudio();
+  // ボタン押下（押した瞬間だけ）
+  if (edge(1)) handleKey('Enter');      // A: 開始 / 駐車完了 / もう一度
+  if (edge(3)) handleKey('KeyC');       // X: カメラ切替
+  if (edge(2)) handleKey('KeyU');       // Y: ミラー調整
+  if (edge(8)) handleKey('KeyR');       // −: やり直し
+  if (edge(9)) game === 'menu' ? startGame() : handleKey('Escape');   // +: 設定 / 開始
+  if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
+  if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
+  if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
+  pad.prev = gp.buttons.map((_, i) => b(i));
+}
+function rumble(ms = 180, strong = 0.8){
+  const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(g => g && g.connected);
+  try { gp?.vibrationActuator?.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: strong }); } catch(e) {}
+}
 
 // ---------------- 音 ----------------
 let actx = null;
@@ -961,13 +1007,14 @@ function setGear(g){
 }
 function physics(dt){
   const ar = !mirrorAdj.open;  // ミラー調整中は矢印キーをミラーに使う
-  const fwd = isDown('KeyW','TKeyW') || (ar && isDown('ArrowUp')), back = isDown('KeyS','TKeyS') || (ar && isDown('ArrowDown')), brake = isDown('Space','TSpace');
-  const left = isDown('KeyA') || (ar && isDown('ArrowLeft')), right = isDown('KeyD') || (ar && isDown('ArrowRight')), slow = slowToggle || isDown('ShiftLeft','ShiftRight');
+  const fwd = isDown('KeyW','TKeyW','GFwd') || (ar && isDown('ArrowUp')), back = isDown('KeyS','TKeyS','GBack') || (ar && isDown('ArrowDown')), brake = isDown('Space','TSpace','GBrake');
+  const left = isDown('KeyA') || (ar && isDown('ArrowLeft')), right = isDown('KeyD') || (ar && isDown('ArrowRight')), slow = slowToggle || isDown('ShiftLeft','ShiftRight','GSlow');
   // ハンドル
   const steerIn = (left ? 1 : 0) - (right ? 1 : 0);
   const rate = C.maxSteer / 0.9;
   if (touchSteer.active) st.delta = -touchSteer.cwDeg / 540 * C.maxSteer;
   else if (steerIn) st.delta += steerIn*rate*dt;
+  else if (pad.steer) st.delta -= pad.steer*rate*dt;   // スティック右 → 右に切る（倒し量に比例）
   else if (S.autoCenter) { const r = 0.28*Math.abs(st.v)*dt; st.delta -= Math.sign(st.delta)*Math.min(Math.abs(st.delta), r); }
   st.delta = clamp(st.delta, -C.maxSteer, C.maxSteer);
   // アクセル / ブレーキ
@@ -993,8 +1040,8 @@ function physics(dt){
     const impact = Math.abs(st.v);
     st.v = 0;
     if (!st.touching) {
-      if (hit === 'body') { st.hits++; flashHit('接触！'); tone(90, 0.25, 0.25, 'square'); }
-      else if (hit === 'curb') { st.curbs++; flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触！'); tone(90, 0.25, 0.25, 'square'); }
+      else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
     st.touching = true;
@@ -1222,7 +1269,8 @@ function updateScene(dt){
   camBack.rotation.set(-0.62, 0, 0);
   // 運転席の目視
   let look = 0;
-  if (isDown('KeyQ')) look = 1.25; if (isDown('KeyE')) look = -1.1; if (isDown('KeyV')) look = 2.75;
+  if (isDown('KeyQ')) look = 1.25; if (isDown('KeyE')) look = -1.1; if (isDown('KeyV', 'GLookBack')) look = 2.75;
+  if (Math.abs(pad.lookX) > 0) look = -pad.lookX * 1.4;   // 右スティックで見回す
   st.lookYaw += (look - st.lookYaw) * Math.min(1, dt*7);
   driverCam.rotation.set(-0.07, Math.PI + st.lookYaw, 0);
   // 予測軌跡
@@ -1292,6 +1340,7 @@ function loop(t){
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (t - last) / 1000); last = t;
   if (!level) return;
+  pollGamepad(dt);
   if (game === 'play') {
     const n = Math.ceil(dt / (1/120));
     for (let i = 0; i < n; i++) physics(dt / n);
