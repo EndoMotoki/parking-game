@@ -5,265 +5,245 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0d1117">
-<title>駐車練習シミュレーター</title>
+<title>駐車練習</title>
 <style>
 :root{
-  --panel: rgba(16,20,28,.78);
-  --line: rgba(255,255,255,.14);
-  --text: #eef2f7;
-  --muted: #9aa6b6;
-  --accent: #ff8a2a;
-  --ok: #3ddc84;
-  --warn: #ffcc33;
-  --bad: #ff4d4d;
+  --bg: #0e1013;
+  --hud: rgba(14,16,20,.62);
+  --line: rgba(255,255,255,.10);
+  --text: #e9ecef;
+  --muted: #8b939c;
+  --accent: #f08a3c;
+  --ok: #5ccf8a;
+  --warn: #f2c14e;
+  --bad: #ef5b5b;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;overflow:hidden;background:#0d1117;color:var(--text);
-  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
 #main{position:fixed;inset:0;width:100vw;height:100vh;display:block}
-.mirror{position:fixed;border:3px solid #1b1f26;background:#000;overflow:hidden;
-  box-shadow:0 4px 18px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.15);z-index:5}
+
+/* ミラー類：ラベルなし、細いベゼルだけ */
+.mirror{position:fixed;border:2px solid #0b0c0e;background:#000;overflow:hidden;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.45)}
 .mirror canvas{width:100%;height:100%;display:block;transform:scaleX(-1)}
-.mirror span{position:absolute;left:8px;top:5px;font-size:11px;color:#fff;background:rgba(0,0,0,.45);
-  padding:1px 6px;border-radius:6px;pointer-events:none}
-#mRear{top:10px;left:50%;transform:translateX(-50%);width:min(440px,36vw);aspect-ratio:3.4/1;border-radius:14px}
-.door{top:38%;width:min(270px,24vw);aspect-ratio:1.5/1}
-#mLeft{left:12px;border-radius:14px 26px 26px 40px}
-#mRight{right:12px;border-radius:26px 14px 40px 26px}
-/* バック時の表示（アラウンドビュー＋バックモニター） */
-#rearView{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:5;
-  opacity:0;transition:opacity .2s;pointer-events:none;--bmw:min(420px,34vw)}
+#mRear{top:10px;left:50%;transform:translateX(-50%);width:min(420px,34vw);aspect-ratio:3.4/1;border-radius:10px}
+.door{top:38%;width:min(250px,22vw);aspect-ratio:1.5/1}
+#mLeft{left:12px;border-radius:10px 20px 20px 30px}
+#mRight{right:12px;border-radius:20px 10px 30px 20px}
+#rearView{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;
+  opacity:0;transition:opacity .2s;pointer-events:none;--bmw:min(400px,32vw)}
 #rearView.on{opacity:1}
-#rearView .mirror{position:relative;border-radius:8px;border-color:#333}
+#rearView .mirror{position:relative;border-radius:6px}
 #backMon{width:var(--bmw);aspect-ratio:1.6/1}
 #avm{height:calc(var(--bmw) / 1.6);aspect-ratio:0.62/1}
 #avm canvas{transform:none}
 #rearView.noavm #avm{display:none}
 .hidden-mirrors .mirror.door, .hidden-mirrors #mRear{display:none}
-/* リザルト画面：背景で俯瞰リプレイ */
-body.resultView .mirror, body.resultView #rearView, body.resultView #stats, body.resultView #help, body.resultView #gearbox,
-body.resultView #wheelbox, body.resultView #touchUI, body.resultView #touchTools, body.resultView #msg, body.resultView #cockpit,
-body.resultView #mirrorPad, body.resultView #rotateHint{display:none !important}
-#replayLabel{display:none;position:fixed;left:14px;top:12px;z-index:21;background:rgba(16,20,28,.8);border:1px solid var(--line);
-  border-radius:999px;padding:5px 12px;font-size:12px}
-body.resultView #replayLabel{display:block}
+
+/* HUD：小さく、枠線なし */
+.hud{position:fixed;z-index:6;background:var(--hud);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.hud b{color:var(--text);font-weight:600}
+#stats{top:12px;left:12px;display:flex;gap:12px;align-items:baseline}
+#sTime{color:var(--text);font-size:15px;font-weight:600}
+#stats .curbStat{display:none}
+body.parallel #stats .curbStat{display:inline}
+#gearbox{bottom:12px;left:12px;display:flex;align-items:center;gap:12px;padding:8px 12px}
+.gears{display:flex;gap:2px;font-weight:600;font-size:13px}
+.gears div{width:20px;text-align:center;border-radius:4px;color:#555c64}
+.gears div.on{color:var(--text);background:rgba(255,255,255,.12)}
+.gears div.on[data-g="R"]{color:#111;background:var(--accent)}
+#speed{font-size:22px;font-weight:600;color:var(--text);line-height:1}
+#speed small{font-size:11px;color:var(--muted);font-weight:400;margin-left:3px}
+#wheelbox{bottom:12px;right:12px;display:flex;gap:10px;align-items:center;padding:6px 8px}
+#sonar{width:30px;height:48px;opacity:0;transition:opacity .3s}
+#sonar.on{opacity:1}
+#msg{position:fixed;left:50%;top:calc(10px + min(420px,34vw)/3.4 + 12px);transform:translateX(-50%);z-index:7;
+  background:var(--hud);padding:5px 12px;border-radius:6px;font-size:13px;white-space:nowrap;transition:opacity .25s}
+#msg.ok{color:var(--ok)}
+#msg.warn{color:var(--warn)}
+#flash{position:fixed;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 100px 20px rgba(239,91,91,0);transition:box-shadow .4s}
+#flash.hit{box-shadow:inset 0 0 100px 20px rgba(239,91,91,.6);transition:none}
+#toast{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:9;font-size:15px;font-weight:600;
+  background:rgba(14,16,20,.8);color:var(--bad);padding:8px 16px;border-radius:6px;opacity:0;transition:opacity .4s;pointer-events:none}
+#toast.show{opacity:1;transition:none}
+#replayLabel{display:none;position:fixed;left:14px;top:12px;z-index:21;background:var(--hud);border-radius:6px;padding:5px 10px;
+  font-size:12px;color:var(--muted)}
+body.resultView #replayLabel{display:flex;gap:10px}
 #replayLabel i{font-style:normal;color:#48d6ff}
 #replayLabel b{font-weight:400;color:#ff8a2a}
-.panel{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;z-index:6;
-  backdrop-filter:blur(6px)}
-#stats{top:10px;left:12px;font-size:13px;line-height:1.7;min-width:190px}
-#stats b{color:#fff}
-#stats .t{font-size:11px;color:var(--muted)}
-#help{top:10px;right:12px;font-size:12px;line-height:1.65;color:#cfd6e0}
-#help kbd{display:inline-block;min-width:18px;text-align:center;background:#2a3140;border:1px solid #445;border-bottom-width:2px;
-  border-radius:4px;padding:0 4px;font-family:inherit;font-size:11px;color:#fff}
-#gearbox{bottom:12px;left:12px;display:flex;align-items:center;gap:14px}
-.gears{display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:15px}
-.gears div{width:30px;text-align:center;border-radius:5px;color:#667}
-.gears div.on{background:var(--accent);color:#111}
-#speed{font-size:34px;font-weight:800;line-height:1}
-#speed small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
-#camname{font-size:11px;color:var(--muted);margin-top:6px}
-#wheelbox{bottom:12px;right:12px;display:flex;gap:14px;align-items:center}
-#wheelInfo{font-size:11px;color:var(--muted);text-align:center;margin-top:3px}
-#msg{position:fixed;left:50%;top:calc(10px + min(440px,36vw)/3.4 + 14px);transform:translateX(-50%);z-index:7;
-  background:var(--panel);border:1px solid var(--line);padding:7px 16px;border-radius:999px;font-size:14px;
-  white-space:nowrap;transition:opacity .25s}
-#msg.ok{border-color:var(--ok);color:var(--ok)}
-#msg.warn{border-color:var(--warn);color:var(--warn)}
-#flash{position:fixed;inset:0;pointer-events:none;z-index:4;box-shadow:inset 0 0 120px 30px rgba(255,40,40,.0);transition:box-shadow .35s}
-#flash.hit{box-shadow:inset 0 0 120px 30px rgba(255,40,40,.75);transition:none}
-#toast{position:fixed;left:50%;top:45%;transform:translate(-50%,-50%);z-index:9;font-size:22px;font-weight:800;
-  background:rgba(200,30,30,.88);padding:10px 22px;border-radius:12px;opacity:0;transition:opacity .4s;pointer-events:none}
-#toast.show{opacity:1;transition:none}
-.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
-  background:rgba(6,9,14,.62);backdrop-filter:blur(3px);padding:16px}
-.overlay.off{display:none}
-.card{background:#141a24;border:1px solid var(--line);border-radius:16px;padding:22px 24px;width:min(640px,100%);
-  max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.card h1{margin:0 0 4px;font-size:24px}
-#result{background:linear-gradient(90deg, rgba(6,9,14,0) 35%, rgba(6,9,14,.6));backdrop-filter:none;justify-content:flex-end}
-@media (orientation:portrait){
-  #result{background:linear-gradient(180deg, rgba(6,9,14,0) 30%, rgba(6,9,14,.6));align-items:flex-end;justify-content:center}
-  #result .card{max-height:58vh}
-}
-.card .sub{margin:0 0 16px;color:var(--muted);font-size:13px}
-.opt{margin:12px 0}
-.opt>label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-.seg{display:flex;flex-wrap:wrap;gap:6px}
-.seg button{flex:1 1 0;min-width:90px;padding:9px 8px;border-radius:9px;border:1px solid #2c3546;background:#1c2330;color:#d9e0ea;
-  font:inherit;font-size:14px;cursor:pointer}
-.seg button:hover{border-color:#4b5a74}
-.seg button.on{background:var(--accent);border-color:var(--accent);color:#141414;font-weight:700}
-.seg button small{display:block;font-size:10px;opacity:.75;font-weight:400}
-.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px 14px;font-size:13px}
-.checks label{display:flex;align-items:center;gap:6px;cursor:pointer}
-.checks input{accent-color:var(--accent);width:16px;height:16px}
-.bigbtn{display:block;width:100%;margin-top:18px;padding:13px;font:inherit;font-size:17px;font-weight:800;border:0;border-radius:11px;
-  background:var(--accent);color:#141414;cursor:pointer}
-.btnrow{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
-.btnrow button{flex:1;padding:11px;font:inherit;font-weight:700;border-radius:10px;border:1px solid #2c3546;background:#1c2330;color:#fff;cursor:pointer}
-.btnrow button.primary{background:var(--accent);color:#141414;border-color:var(--accent)}
-.keys{margin-top:16px;font-size:12px;color:var(--muted);line-height:1.8;border-top:1px solid var(--line);padding-top:12px}
-.keys kbd{display:inline-block;min-width:18px;text-align:center;background:#2a3140;border:1px solid #445;border-radius:4px;padding:0 4px;
-  font-family:inherit;font-size:11px;color:#fff}
-#rank{font-size:84px;font-weight:900;text-align:center;line-height:1;margin:6px 0}
-#score{text-align:center;font-size:20px;margin-bottom:10px}
-#breakdown{width:100%;border-collapse:collapse;font-size:14px}
-#breakdown td{padding:6px 4px;border-bottom:1px solid var(--line)}
-#breakdown td:last-child{text-align:right;font-variant-numeric:tabular-nums}
-#breakdown .neg{color:#ff8080}
-#tips{margin-top:12px;font-size:13px;color:#cfd6e0;line-height:1.7}
-@media (max-width:760px){ #help{display:none} }
+body.resultView .mirror, body.resultView #rearView, body.resultView .hud, body.resultView #touchUI, body.resultView #touchTools,
+body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body.resultView #rotateHint{display:none !important}
 
-/* ===== タッチ操作 ===== */
+/* メニュー・リザルト */
+.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:rgba(8,9,11,.55);padding:16px}
+.overlay.off{display:none}
+.card{background:#16191d;border-radius:12px;padding:22px 24px;width:min(520px,100%);max-height:100%;overflow:auto;
+  box-shadow:0 16px 48px rgba(0,0,0,.45)}
+.card h1{margin:0 0 14px;font-size:20px;font-weight:600;letter-spacing:.02em}
+.opt{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:10px;margin:8px 0}
+.opt>label{font-size:12px;color:var(--muted)}
+.seg{display:flex;background:#0f1114;border-radius:8px;padding:3px;gap:2px}
+.seg button{flex:1 1 0;padding:7px 4px;border:0;border-radius:6px;background:transparent;color:#aab1b9;font-size:13px;cursor:pointer}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:#2a2f36;color:var(--text);font-weight:600}
+details.more{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+details.more summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none}
+details.more summary::before{content:"+ "}
+details.more[open] summary::before{content:"− "}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px;margin-top:8px;color:#c4cad1}
+.checks label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.checks input{accent-color:var(--accent);width:15px;height:15px}
+.bigbtn{display:block;width:100%;margin-top:16px;padding:11px;font-size:15px;font-weight:600;border:0;border-radius:8px;
+  background:var(--accent);color:#111;cursor:pointer}
+.btnrow{display:flex;gap:6px;margin-top:16px}
+.btnrow button{flex:1;padding:9px;font-size:13px;border-radius:8px;border:0;background:#2a2f36;color:var(--text);cursor:pointer}
+.btnrow button.primary{background:var(--accent);color:#111;font-weight:600}
+.keys{font-size:12px;color:var(--muted);line-height:1.9;margin-top:8px}
+.keys kbd{display:inline-block;min-width:18px;text-align:center;background:#262a30;border-radius:4px;padding:0 5px;
+  font-family:inherit;font-size:11px;color:#d6dbe0}
+.keys .g{margin-top:6px}
+#resTitle{font-size:12px;color:var(--muted)}
+.rankrow{display:flex;align-items:baseline;gap:14px;margin:4px 0 12px}
+#rank{font-size:56px;font-weight:700;line-height:1}
+#score{font-size:18px;color:var(--text)}
+#breakdown{width:100%;border-collapse:collapse;font-size:13px}
+#breakdown td{padding:5px 0;border-bottom:1px solid var(--line);color:#c4cad1}
+#breakdown td:nth-child(2){text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+#breakdown td:last-child{text-align:right;width:44px;color:var(--muted);font-variant-numeric:tabular-nums}
+#breakdown .neg{color:#e88}
+#tips{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7}
+#result .card{width:min(380px,100%)}
+#result{background:linear-gradient(90deg, rgba(8,9,11,0) 40%, rgba(8,9,11,.5));justify-content:flex-end}
+@media (orientation:portrait){
+  #result{background:linear-gradient(180deg, rgba(8,9,11,0) 35%, rgba(8,9,11,.5));align-items:flex-end;justify-content:center}
+  #result .card{max-height:56vh}
+}
+@media (max-height:500px){ .card{padding:14px 16px} .card h1{margin-bottom:8px} .opt{margin:5px 0} .seg button{padding:5px 4px} .bigbtn{margin-top:10px;padding:9px} }
+
+/* タッチ操作 */
 #touchUI, #touchTools, .touch-only, #rotateHint{display:none}
 body.touch{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
 body.touch #touchUI, body.touch #touchTools{display:block}
 body.touch .touch-only{display:block}
-body.touch .keys-only, body.touch #help{display:none}
-.tbtn{font:inherit;color:#fff;background:rgba(20,26,36,.82);border:1px solid rgba(255,255,255,.22);border-radius:12px;
-  touch-action:none;-webkit-tap-highlight-color:transparent;cursor:pointer}
-.tbtn.down{background:var(--accent);color:#141414;border-color:var(--accent)}
+body.touch .keys-only{display:none}
+.tbtn{color:var(--text);background:rgba(14,16,20,.62);border:0;border-radius:8px;touch-action:none;
+  -webkit-tap-highlight-color:transparent;cursor:pointer}
+.tbtn.down{background:rgba(255,255,255,.28)}
 #tWheel{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));
-  width:min(38vh,170px,44vw);height:min(38vh,170px,44vw);z-index:8;touch-action:none;border-radius:50%;
-  background:radial-gradient(circle, rgba(0,0,0,.05) 55%, rgba(0,0,0,.35) 56%)}
-#tWheel svg{width:100%;height:100%;display:block;pointer-events:none}
-#tWheel.active{filter:drop-shadow(0 0 10px rgba(255,138,42,.7))}
+  width:min(38vh,160px,44vw);height:min(38vh,160px,44vw);z-index:8;touch-action:none;border-radius:50%}
+#tWheel svg{width:100%;height:100%;display:block;pointer-events:none;opacity:.85}
+#tWheel.active svg{opacity:1}
 #tPedals{position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:8;
-  display:grid;grid-template-columns:auto auto;grid-template-rows:1fr 1fr;gap:8px}
-#tPedals .tbtn{width:min(19vh,84px,22vw);font-size:15px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-#tPedals .tbtn small{font-size:10px;font-weight:500;opacity:.8}
-#tFwd,#tRev{height:min(19vh,80px)}
-#tBrake{grid-row:1 / span 2;grid-column:1;background:rgba(120,20,20,.85)}
-#tBrake.down{background:#ff4d4d;color:#fff}
+  display:grid;grid-template-columns:auto auto;grid-template-rows:1fr 1fr;gap:6px}
+#tPedals .tbtn{width:min(19vh,80px,22vw);font-size:13px;display:flex;align-items:center;justify-content:center}
+#tFwd,#tRev{height:min(19vh,76px)}
+#tBrake{grid-row:1 / span 2;grid-column:1}
+#tBrake.down{background:rgba(239,91,91,.7)}
 #tSlow{position:fixed;right:calc(10px + env(safe-area-inset-right));z-index:8;
-  bottom:calc(10px + env(safe-area-inset-bottom) + min(38vh,168px) + 16px);padding:6px 10px;font-size:12px}
-#tSlow.on{background:#3ddc84;color:#111;border-color:#3ddc84}
-#touchTools{position:fixed;left:50%;transform:translateX(-50%);z-index:8;display:none;white-space:nowrap}
-#touchTools .tbtn{padding:6px 10px;font-size:12px;margin:0 2px}
+  bottom:calc(10px + env(safe-area-inset-bottom) + min(38vh,160px) + 12px);padding:6px 10px;font-size:12px}
+#tSlow.on{background:rgba(92,207,138,.75);color:#111}
+#touchTools{position:fixed;left:50%;transform:translateX(-50%);z-index:8;white-space:nowrap}
+#touchTools .tbtn{padding:6px 10px;font-size:12px;margin:0 1px}
 body.touch #touchTools{display:block;top:calc(8px + min(300px,30vw)/3.4 + 6px)}
-/* タッチ時のレイアウト（ミラーを上段に寄せる） */
 body.touch #mRear{top:8px;width:min(300px,30vw)}
 body.touch .door{top:8px;width:min(230px,21vw)}
 body.touch #mLeft{left:calc(8px + env(safe-area-inset-left))}
 body.touch #mRight{right:calc(8px + env(safe-area-inset-right))}
-body.touch #stats{top:calc(8px + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));font-size:11px;line-height:1.5;
-  min-width:0;padding:6px 8px}
-body.touch #gearbox{top:calc(8px + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right));padding:6px 10px;gap:8px}
-body.touch #speed{font-size:22px}
-body.touch #camname{display:none}
-body.touch .gears{flex-direction:row;font-size:12px}
-body.touch .gears div{width:20px}
+body.touch #stats{top:calc(8px + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));flex-direction:column;gap:2px}
+body.touch #gearbox{top:calc(8px + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right))}
 body.touch #wheelbox{display:none}
 body.touch #rearView{--bmw:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
-body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 46px);font-size:12px;padding:5px 12px}
-body.touch #toast{font-size:18px}
-.pad-only{display:none}
-body.gamepad .pad-only{display:inline}
-#tSonar{display:none}
-body.touch #tSonar, body.driver:not(.touch) #tSonar{display:block;width:26px;height:42px}
-/* 運転席視点のハンドル */
-#cockpit{display:none;position:fixed;left:50%;bottom:0;transform:translate(-50%, 46%);width:min(34vw,400px);aspect-ratio:1;z-index:3;pointer-events:none}
-body.driver:not(.touch) #cockpit{display:block}
-#cockpit svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 16px rgba(0,0,0,.6))}
-#cockpitInfo{position:absolute;left:50%;top:-34px;transform:translateX(-50%);background:rgba(16,20,28,.85);border:1px solid var(--line);
-  border-radius:999px;padding:3px 12px;font-size:13px;font-weight:700;white-space:nowrap}
-#cockpitInfo.center{border-color:var(--ok);color:var(--ok)}
-body.driver:not(.touch) #wheelbox{display:none}
-body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(300px,24vw)}
-/* ドアミラー調整パネル */
-.mirror.door{cursor:pointer}
-.mirror.door.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 4px 18px rgba(0,0,0,.55)}
-#mirrorPad{display:none;position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:12;background:rgba(16,20,28,.92);
-  border:1px solid var(--line);border-radius:14px;padding:10px 12px;text-align:center;font-size:12px;touch-action:none}
-#mirrorPad.open{display:block}
-#mirrorPad .ttl{font-weight:700;margin-bottom:6px}
-#mirrorPad .lr{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
-#mirrorPad .lr button{padding:5px 14px;font-size:13px}
-#mirrorPad .lr button.on{background:var(--accent);color:#141414;border-color:var(--accent)}
-#mirrorPad .pad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,42px);gap:4px;justify-content:center}
-#mirrorPad .pad button{font-size:18px;padding:0}
-#mirrorPad .pad .rst{font-size:11px}
-#mirrorPad .hint{color:var(--muted);font-size:11px;margin-top:6px;line-height:1.5}
-#mirrorPad .close{margin-top:8px;padding:5px 16px;font-size:12px}
+body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 44px);font-size:12px}
 body.touch.portrait .door{width:27vw}
 body.touch.portrait #mRear{width:36vw}
 body.touch.portrait #touchTools{white-space:normal;width:98vw;text-align:center;top:calc(8px + 18vw + 6px)}
-body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 7px;font-size:11px}
-body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + 18vw + 46px)}
-body.touch.portrait #stats{top:calc(8px + 18vw + 86px)}
-body.touch.portrait #gearbox{top:calc(8px + 18vw + 86px)}
-@media (max-height:500px){ .card{padding:14px 16px} .card h1{font-size:19px} .opt{margin:8px 0} .seg button{padding:6px} .bigbtn{margin-top:10px;padding:10px} }
-body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(40vh,170px) + 24px);transform:translateX(-50%);
-  z-index:9;background:rgba(20,26,36,.9);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;white-space:nowrap}
+body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 8px;font-size:11px}
+body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + 18vw + 44px)}
+body.touch.portrait #stats{top:calc(8px + 18vw + 84px)}
+body.touch.portrait #gearbox{top:calc(8px + 18vw + 84px)}
+body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(38vh,160px) + 24px);transform:translateX(-50%);
+  z-index:9;background:var(--hud);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
+.pad-only{display:none}
+body.gamepad .pad-only{display:inline}
+#tSonar{display:none}
+body.touch #tSonar, body.driver:not(.touch) #tSonar{display:block;width:22px;height:36px}
+
+/* 運転席視点のハンドル */
+#cockpit{display:none;position:fixed;left:50%;bottom:0;transform:translate(-50%, 46%);width:min(34vw,400px);aspect-ratio:1;z-index:3;pointer-events:none}
+body.driver:not(.touch) #cockpit{display:block}
+#cockpit svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 16px rgba(0,0,0,.5))}
+#cockpitInfo{position:absolute;left:50%;top:-26px;transform:translateX(-50%);font-size:12px;color:var(--muted);white-space:nowrap;
+  font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+#cockpitInfo.center{color:var(--ok)}
+body.driver:not(.touch) #wheelbox{display:none}
+body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(300px,24vw)}
+
+/* ドアミラー調整 */
+.mirror.door{cursor:pointer}
+.mirror.door.sel{border-color:var(--accent)}
+#mirrorPad{display:none;position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);z-index:12;background:rgba(22,25,29,.94);
+  border-radius:10px;padding:10px 12px;text-align:center;font-size:12px;touch-action:none}
+#mirrorPad.open{display:block}
+#mirrorPad .ttl{color:var(--muted);margin-bottom:6px}
+#mirrorPad .lr{display:flex;gap:4px;justify-content:center;margin-bottom:8px}
+#mirrorPad .lr button{padding:4px 14px;font-size:12px}
+#mirrorPad .lr button.on{background:#3a4048}
+#mirrorPad .pad{display:grid;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,38px);gap:3px;justify-content:center}
+#mirrorPad .pad button{font-size:14px;padding:0}
+#mirrorPad .pad .rst{font-size:10px;color:var(--muted)}
+#mirrorPad .close{margin-top:8px;padding:4px 14px;font-size:12px}
+body.exitTask #tDone{display:none}
 </style>
 </head>
 <body>
 <canvas id="main"></canvas>
 <div id="flash"></div>
 
-<div class="mirror" id="mRear"><canvas></canvas><span>ルームミラー</span></div>
-<div class="mirror door" id="mLeft"><canvas></canvas><span>左ドアミラー</span></div>
-<div class="mirror door" id="mRight"><canvas></canvas><span>右ドアミラー</span></div>
+<div class="mirror" id="mRear"><canvas></canvas></div>
+<div class="mirror door" id="mLeft"><canvas></canvas></div>
+<div class="mirror door" id="mRight"><canvas></canvas></div>
 <div id="rearView">
-  <div class="mirror" id="avm"><canvas></canvas><span>アラウンドビュー</span></div>
-  <div class="mirror" id="backMon"><canvas></canvas><span>バックモニター</span></div>
+  <div class="mirror" id="avm"><canvas></canvas></div>
+  <div class="mirror" id="backMon"><canvas></canvas></div>
 </div>
-<div id="replayLabel">▶ 俯瞰リプレイ ×<span id="replaySpeed">3</span>　<i>━ 前進</i>　<b>━ 後退</b></div>
+<div id="replayLabel"><span>リプレイ ×<span id="replaySpeed">3</span></span><i>前進</i><b>後退</b></div>
 
-<div class="panel" id="stats">
-  <div class="t" id="modeLabel">-</div>
-  経過時間 <b id="sTime">0.0</b> 秒<br>
-  接触 <b id="sHit">0</b> 回　縁石 <b id="sCurb">0</b> 回<br>
-  切り返し <b id="sKiri">0</b> 回<br>
-  <span class="t">枠とのずれ: <span id="sAng">-</span></span>
-</div>
-
-<div class="panel" id="help">
-  <kbd>W</kbd>/<kbd>S</kbd> 前進・後退（逆方向でブレーキ）<br>
-  <kbd>A</kbd>/<kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ<br>
-  <kbd>Shift</kbd>+移動 微速　<kbd>C</kbd> カメラ切替<br>
-  <kbd>Q</kbd>/<kbd>E</kbd> 左右目視　<kbd>V</kbd> 後方目視（運転席）<br>
-  <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置<br>
-  <span class="pad-only">🎮 ZR 前進・ZL 後退・B ブレーキ・Lスティック ハンドル<br>A 完了・X カメラ・Y ミラー調整・− やり直し・+ 設定<br></span>
-  <kbd>U</kbd> ミラー調整（ミラーをクリックでも可）<br>
-  <kbd>G</kbd> 軌跡ガイド　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音　<kbd>Esc</kbd> 設定
+<div class="hud" id="stats">
+  <span id="sTime">0.0</span>
+  <span>接触 <b id="sHit">0</b></span>
+  <span class="curbStat">縁石 <b id="sCurb">0</b></span>
+  <span>切り返し <b id="sKiri">0</b></span>
 </div>
 
-<div class="panel" id="gearbox">
+<div class="hud" id="gearbox">
   <div class="gears"><div data-g="P">P</div><div data-g="R">R</div><div data-g="D">D</div></div>
-  <div>
-    <div id="speed">0.0<small>km/h</small></div>
-    <div id="camname">カメラ: 俯瞰</div>
-  </div>
+  <div id="speed">0<small>km/h</small></div>
 </div>
 
-<div class="panel" id="wheelbox">
-  <svg id="sonar" width="74" height="120" viewBox="0 0 74 120">
+<div class="hud" id="wheelbox">
+  <svg id="sonar" viewBox="0 0 74 120">
     <g id="sonarF"></g><g id="sonarR"></g>
-    <rect x="22" y="22" width="30" height="76" rx="8" fill="#ff8a2a" opacity=".9"/>
-    <rect x="25" y="38" width="24" height="12" rx="3" fill="#223"/>
-    <rect x="25" y="74" width="24" height="9" rx="3" fill="#223"/>
+    <rect x="22" y="22" width="30" height="76" rx="8" fill="#6b7280"/>
   </svg>
-  <div>
-    <svg width="96" height="96" viewBox="-50 -50 100 100">
-      <g id="wheel">
-        <circle r="42" fill="none" stroke="#c9d1dc" stroke-width="8"/>
-        <circle r="11" fill="#c9d1dc"/>
-        <rect x="-42" y="-3" width="84" height="6" fill="#c9d1dc"/>
-        <rect x="-3" y="0" width="6" height="42" fill="#c9d1dc"/>
-        <rect x="-4" y="-48" width="8" height="10" rx="2" fill="#ff8a2a"/>
-      </g>
-    </svg>
-    <div id="wheelInfo">タイヤ 0°</div>
-  </div>
+  <svg width="48" height="48" viewBox="-50 -50 100 100">
+    <g id="wheel">
+      <circle r="42" fill="none" stroke="#c9ced4" stroke-width="7"/>
+      <circle r="10" fill="#c9ced4"/>
+      <rect x="-42" y="-3" width="84" height="6" fill="#c9ced4"/>
+      <rect x="-3" y="0" width="6" height="42" fill="#c9ced4"/>
+      <rect x="-4" y="-48" width="8" height="10" rx="2" fill="#f08a3c"/>
+    </g>
+  </svg>
 </div>
 
 <div id="msg" style="opacity:0"></div>
 
 <div id="cockpit">
-  <div id="cockpitInfo">タイヤ 0°</div>
+  <div id="cockpitInfo"></div>
   <svg viewBox="-60 -60 120 120"><g id="cockpitWheel">
     <circle r="54" fill="none" stroke="#1d2129" stroke-width="10"/>
     <circle r="54" fill="none" stroke="#3a404b" stroke-width="3"/>
@@ -271,140 +251,120 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
     <path d="M-10 20 L-8 50 M10 20 L8 50" stroke="#1d2129" stroke-width="8"/>
     <circle r="17" fill="#1d2129" stroke="#3a404b" stroke-width="2"/>
     <circle r="6" fill="#59606c"/>
-    <rect x="-4" y="-60" width="8" height="12" rx="2" fill="#ff8a2a"/>
+    <rect x="-4" y="-60" width="8" height="12" rx="2" fill="#f08a3c"/>
   </g></svg>
 </div>
 
 <div id="mirrorPad">
-  <div class="ttl">🪞 ドアミラー調整</div>
-  <div class="lr"><button class="tbtn" data-mside="L">左 L</button><button class="tbtn" data-mside="R">右 R</button></div>
+  <div class="ttl">ミラー調整</div>
+  <div class="lr"><button class="tbtn" data-mside="L">左</button><button class="tbtn" data-mside="R">右</button></div>
   <div class="pad">
     <span></span><button class="tbtn" data-mdir="up">▲</button><span></span>
-    <button class="tbtn" data-mdir="left">◀</button><button class="tbtn rst" id="mReset">リセット</button><button class="tbtn" data-mdir="right">▶</button>
+    <button class="tbtn" data-mdir="left">◀</button><button class="tbtn rst" id="mReset">戻す</button><button class="tbtn" data-mdir="right">▶</button>
     <span></span><button class="tbtn" data-mdir="down">▼</button><span></span>
   </div>
-  <div class="hint keys-only">矢印キーで調整・<kbd>1</kbd>/<kbd>2</kbd>で左右切替<br><kbd>U</kbd>で閉じる（運転は WASD）</div>
   <button class="tbtn close" id="mClose">閉じる</button>
 </div>
-<div id="toast">接触！</div>
+<div id="toast"></div>
 
-<!-- ===== タッチ操作（スマホ・タブレット） ===== -->
 <div id="touchUI">
   <div id="tWheel">
     <svg viewBox="-50 -50 100 100"><g id="tWheelG">
-      <circle r="44" fill="none" stroke="#dfe5ee" stroke-width="9"/>
-      <circle r="12" fill="#dfe5ee"/>
-      <rect x="-44" y="-3.5" width="88" height="7" fill="#dfe5ee"/>
-      <rect x="-3.5" y="0" width="7" height="44" fill="#dfe5ee"/>
-      <rect x="-5" y="-50" width="10" height="12" rx="2" fill="#ff8a2a"/>
+      <circle r="44" fill="none" stroke="#dfe3e8" stroke-width="8"/>
+      <circle r="11" fill="#dfe3e8"/>
+      <rect x="-44" y="-3" width="88" height="6" fill="#dfe3e8"/>
+      <rect x="-3" y="0" width="6" height="44" fill="#dfe3e8"/>
+      <rect x="-5" y="-50" width="10" height="11" rx="2" fill="#f08a3c"/>
     </g></svg>
   </div>
   <div id="tPedals">
-    <button class="tbtn" id="tBrake" data-hold="Space">■<small>ブレーキ</small></button>
-    <button class="tbtn" id="tFwd" data-hold="KeyW">▲<small>前進 D</small></button>
-    <button class="tbtn" id="tRev" data-hold="KeyS">▼<small>後退 R</small></button>
+    <button class="tbtn" id="tBrake" data-hold="Space">ブレーキ</button>
+    <button class="tbtn" id="tFwd" data-hold="KeyW">前進</button>
+    <button class="tbtn" id="tRev" data-hold="KeyS">後退</button>
   </div>
-  <button class="tbtn" id="tSlow">🐢 微速</button>
+  <button class="tbtn" id="tSlow">微速</button>
   <svg id="tSonar" viewBox="0 0 74 120"></svg>
 </div>
 <div id="touchTools">
-  <button class="tbtn" data-act="KeyC">📷 カメラ</button>
-  <button class="tbtn" data-act="Enter">✅ 完了</button>
-  <button class="tbtn" data-act="KeyR">↺ やり直し</button>
-  <button class="tbtn" data-act="KeyU">🪞 ミラー調整</button>
-  <button class="tbtn" data-act="Escape">⚙ 設定</button>
+  <button class="tbtn" data-act="KeyC">視点</button>
+  <button class="tbtn" data-act="Enter" id="tDone">完了</button>
+  <button class="tbtn" data-act="KeyR">やり直し</button>
+  <button class="tbtn" data-act="KeyU">ミラー</button>
+  <button class="tbtn" data-act="Escape">メニュー</button>
 </div>
-<div id="rotateHint">📱 横向きにすると遊びやすくなります</div>
+<div id="rotateHint">横向きのほうが遊びやすいです</div>
 
-<!-- ===== Menu ===== -->
 <div class="overlay" id="menu">
   <div class="card">
-    <h1>🚗 駐車練習シミュレーター</h1>
-    <p class="sub">ドアミラー・ルームミラー・バックモニターを見ながら、<span class="keys-only" style="display:inline">キーボード（WASD）</span><span class="touch-only" style="display:none" id="subTouch">画面のハンドルとペダル</span>で駐車を練習しよう。</p>
+    <h1>駐車練習</h1>
 
-    <div class="opt" data-key="mode"><label>駐車タイプ</label><div class="seg">
-      <button data-v="back">バック駐車<small>後ろ向きで枠に入れる</small></button>
-      <button data-v="front">前向き駐車<small>頭から枠に入れる</small></button>
-      <button data-v="parallel">縦列駐車<small>路肩の車の間に入れる</small></button>
+    <div class="opt" data-key="task"><label>練習</label><div class="seg">
+      <button data-v="park">入庫</button><button data-v="exit">出庫</button>
     </div></div>
-
-    <div class="opt" data-key="crowd"><label>駐車場の混雑度</label><div class="seg">
-      <button data-v="empty">空いている</button>
-      <button data-v="normal">普通</button>
-      <button data-v="busy">混雑</button>
-      <button data-v="full">ほぼ満車<small>両隣も斜め止め多め</small></button>
+    <div class="opt" data-key="mode"><label>タイプ</label><div class="seg">
+      <button data-v="back">バック</button><button data-v="front">前向き</button><button data-v="parallel">縦列</button>
     </div></div>
-
-    <div class="opt" data-key="car"><label>自分の車</label><div class="seg">
-      <button data-v="kei">軽自動車<small>3.4m × 1.48m</small></button>
-      <button data-v="std">普通車<small>4.6m × 1.80m</small></button>
-      <button data-v="van">ミニバン<small>4.85m × 1.85m</small></button>
+    <div class="opt" data-key="crowd"><label>混雑</label><div class="seg">
+      <button data-v="empty">空き</button><button data-v="normal">普通</button><button data-v="busy">混雑</button><button data-v="full">満車</button>
     </div></div>
-
-    <div class="opt" data-key="width"><label>駐車枠の広さ</label><div class="seg">
-      <button data-v="wide">広め</button>
-      <button data-v="std">標準</button>
-      <button data-v="narrow">狭め</button>
+    <div class="opt" data-key="car"><label>車</label><div class="seg">
+      <button data-v="kei">軽</button><button data-v="std">普通車</button><button data-v="van">ミニバン</button>
     </div></div>
-
-    <div class="opt" data-key="backSound"><label>R（バック）に入れたときの音（Bキーで切替）</label><div class="seg">
-      <button data-v="beep">ピー音<small>乗用車の車内警告音</small></button>
-      <button data-v="voice">音声<small>「バックします」トラック風</small></button>
-      <button data-v="off">なし</button>
+    <div class="opt" data-key="width"><label>枠の幅</label><div class="seg">
+      <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
     </div></div>
+    <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
 
-    <div class="opt" data-key="cam"><label>開始時のカメラ（Cキーでいつでも切替）</label><div class="seg">
-      <button data-v="top">俯瞰</button>
-      <button data-v="chase">追従</button>
-      <button data-v="driver">運転席</button>
-    </div></div>
+    <button class="bigbtn" id="startBtn">スタート</button>
 
-    <div class="opt"><label>アシスト</label><div class="checks">
-      <label><input type="checkbox" id="o-guide" checked> 予測軌跡ガイド＋接触予測</label>
-      <label><input type="checkbox" id="o-highlight" checked> 目標の枠をハイライト</label>
-      <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
-      <label><input type="checkbox" id="o-mirrorTilt" checked> リバース連動ミラー（下向き）</label>
-      <label><input type="checkbox" id="o-avm" checked> アラウンドビュー（R時）</label>
-      <label><input type="checkbox" id="o-sound" checked> 障害物センサー音</label>
-    </div></div>
+    <details class="more"><summary>詳細設定</summary>
+      <div class="opt" data-key="cam"><label>視点</label><div class="seg">
+        <button data-v="top">俯瞰</button><button data-v="chase">追従</button><button data-v="driver">運転席</button>
+      </div></div>
+      <div class="opt" data-key="backSound"><label>バック音</label><div class="seg">
+        <button data-v="beep">ピー</button><button data-v="voice">音声</button><button data-v="off">なし</button>
+      </div></div>
+      <div class="checks">
+        <label><input type="checkbox" id="o-guide" checked> 予測軌跡</label>
+        <label><input type="checkbox" id="o-highlight" checked> 枠のハイライト</label>
+        <label><input type="checkbox" id="o-avm" checked> アラウンドビュー</label>
+        <label><input type="checkbox" id="o-mirrorTilt" checked> リバース連動ミラー</label>
+        <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
+        <label><input type="checkbox" id="o-sound" checked> センサー音</label>
+      </div>
+    </details>
 
-    <button class="bigbtn" id="startBtn">スタート（Enter）</button>
-
-    <div class="keys touch-only">
-      <b>タッチ操作</b>：左下のハンドルを指で回す／右下の ▲ 前進・▼ 後退・■ ブレーキを押している間だけ動きます。<br>
-      ドアミラーをタップ（または「🪞 ミラー調整」）で角度を調整できます。<br>
-      軌跡: 黄=後ろの角、橙=前の振り出し、水色=前の角、紫=内輪差、赤=このままだと接触。<br>
-      🐢 微速で速度を抑えられます。2本指のピンチで俯瞰の拡大・縮小。<br>
-      枠内で停止したら上部の「✅ 完了」で採点。「📷 カメラ」で視点切替。横向き推奨です。
-    </div>
-    <div class="keys">
-      🎮 <b>Switch プロコン／ゲームパッド</b>（Bluetooth か USB で接続後、ボタンを1回押すと認識）<br>
-      ZR 前進・ZL 後退・B ブレーキ・L 押しながら微速・Lスティック ハンドル（倒した量で切る速さが変わる）<br>
-      A 開始／駐車完了・X カメラ切替・Y ミラー調整（十字キーで角度、L/Rで左右）・− やり直し・+ 設定<br>
-      運転席視点：Rスティック 見回し・R 後方目視／俯瞰：Rスティック上下 ズーム・Rスティック押し込み 新しい配置
-    </div>
-    <div class="keys keys-only">
-      <kbd>W</kbd> 前進（D）／後退中はブレーキ　<kbd>S</kbd> 後退（R）／前進中はブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル<br>
-      <kbd>Space</kbd> ブレーキ　<kbd>Shift</kbd> 押しながらで微速　<kbd>C</kbd> カメラ切替　<kbd>Q</kbd><kbd>E</kbd><kbd>V</kbd> 目視確認（運転席視点）<br>
-      <kbd>U</kbd> またはドアミラーをクリック：ミラーの角度調整（矢印キー）<br>
-      軌跡ガイド: <span style="color:#ffd23f">黄=後ろの角</span>・<span style="color:#ff8a2a">橙=前の振り出し</span>（後退時）／<span style="color:#48d6ff">水色=前の角</span>・<span style="color:#b48cff">紫=内輪差</span>（前進時）・<span style="color:#ff6b6b">赤=このままだと接触</span><br>
-      停止して枠に収まったら <kbd>Enter</kbd> で採点。　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置　<kbd>Esc</kbd> この画面
-    </div>
+    <details class="more"><summary>操作方法</summary>
+      <div class="keys keys-only">
+        <kbd>W</kbd> 前進　<kbd>S</kbd> 後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ　<kbd>Shift</kbd> 微速<br>
+        <kbd>C</kbd> 視点　<kbd>Q</kbd><kbd>E</kbd><kbd>V</kbd> 左右・後方を見る　<kbd>U</kbd> ミラー調整<br>
+        <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>N</kbd> 別の配置　<kbd>Esc</kbd> メニュー<br>
+        <kbd>G</kbd> 軌跡　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音
+      </div>
+      <div class="keys touch-only">
+        左下のハンドルを指で回し、右下のペダルを押している間だけ進みます。ミラーをタップすると角度を調整できます。
+      </div>
+      <div class="keys g">
+        コントローラー：ZR 前進　ZL 後退　B ブレーキ　Lスティック ハンドル　L 微速<br>
+        A 完了　X 視点　Y ミラー　− やり直し　+ メニュー
+      </div>
+      <div class="keys g">
+        軌跡の色：<span style="color:#ffd23f">黄</span> 後ろの角　<span style="color:#ff8a2a">橙</span> 前の振り出し　<span style="color:#48d6ff">水色</span> 前の角　<span style="color:#b48cff">紫</span> 内輪差　<span style="color:#ef5b5b">赤</span> 接触しそう
+      </div>
+    </details>
   </div>
 </div>
 
-<!-- ===== Result ===== -->
 <div class="overlay off" id="result">
-  <div class="card" style="width:min(440px,100%)">
-    <div style="text-align:center;color:var(--muted);font-size:13px">駐車完了！</div>
-    <div id="rank">S</div>
-    <div id="score">100 点</div>
+  <div class="card">
+    <div id="resTitle">駐車完了</div>
+    <div class="rankrow"><span id="rank">S</span><span id="score">100 点</span></div>
     <table id="breakdown"></table>
     <div id="tips"></div>
     <div class="btnrow">
-      <button class="primary" id="rRetry">もう一度（R）</button>
-      <button id="rNew">新しい配置（N）</button>
-      <button id="rMenu">設定（Esc）</button>
+      <button class="primary" id="rRetry">もう一度</button>
+      <button id="rNew">別の配置</button>
+      <button id="rMenu">メニュー</button>
     </div>
   </div>
 </div>
@@ -438,7 +398,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
@@ -628,7 +588,7 @@ function buildBay(){
     const cx = x0 + (i + 0.5)*sw;
     const faceAisle = Math.random() < 0.72;
     let h = faceAisle ? (s > 0 ? Math.PI : 0) : (s > 0 ? 0 : Math.PI);
-    const maxOff = Math.max(0.02, (sw - spec.wid)/2 + (S.crowd === 'busy' || S.crowd === 'full' ? 0.14 : 0.0));
+    const maxOff = Math.max(0.02, (sw - spec.wid)/2 + ((S.crowd === 'busy' || S.crowd === 'full') && S.task !== 'exit' ? 0.14 : 0.0));
     let dx = rand(-1, 1)*cr.slop;
     if (neighbor && (S.crowd === 'busy' || S.crowd === 'full')) dx = Math.sign(tx - cx)*rand(0.4, 1)*cr.slop;
     dx = clamp(dx, -maxOff, maxOff);
@@ -646,11 +606,19 @@ function buildBay(){
   const back = S.mode === 'back';
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
   const spawnX = tx - (back ? rand(7.5, 9) : rand(9, 11));
-  return {
-    type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH,
-    spawn: { x: spawnX - CARS[S.car].cOff, z: rand(-0.4, 0.4), h: Math.PI/2 },
-    baseline: back ? 1 : 0,
-  };
+  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH };
+  if (S.task === 'exit') {
+    // 出庫：自分の車が枠に止まった状態から、通路の出口（左右どちらか）まで
+    const backIn = S.mode !== 'front';        // バック＝後ろ向きに止めてある（前進で出る）
+    const hPark = backIn ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
+    const sZ = tRow*(backD - 0.8);             // 輪止めの位置
+    const sp = CARS[S.car];
+    const rz = backIn ? sZ - tRow*0.34 : sZ - tRow*0.34 - Math.cos(hPark)*sp.wb;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    return { ...base, task:'exit', spawn:{ x: tx, z: rz, h: hPark },
+      goal: mkRect(tx + dir*10, 0, 1.5, aisle/2, 0), goalH: dir*Math.PI/2, baseline: backIn ? 0 : 1 };
+  }
+  return { ...base, spawn: { x: spawnX - CARS[S.car].cOff, z: rand(-0.4, 0.4), h: Math.PI/2 }, baseline: back ? 1 : 0 };
 }
 
 function buildParallel(){
@@ -682,7 +650,7 @@ function buildParallel(){
     if (Math.random() > p) continue;
     const ps = randomParkedSpec();
     let dx = rand(-1, 1)*cr.slop*1.5;
-    if (neighbor && (S.crowd === 'busy' || S.crowd === 'full')) dx = Math.sign(tx - (x0 + (i + 0.5)*Lsp))*rand(0.3, 0.6) * (Lsp - ps.len)/2;
+    if (neighbor && (S.crowd === 'busy' || S.crowd === 'full')) dx = Math.sign(tx - (x0 + (i + 0.5)*Lsp))*rand(0.3, S.task === 'exit' ? 0.45 : 0.6) * (Lsp - ps.len)/2;
     dx = clamp(dx, -(Lsp - ps.len)/2, (Lsp - ps.len)/2);
     const cz = curbZ + 0.15 + ps.wid/2 + rand(0, 0.25 + cr.slop*0.4);
     placeParked(x0 + (i + 0.5)*Lsp + dx, cz, Math.PI/2 + rand(-1, 1)*0.03, ps);
@@ -690,11 +658,13 @@ function buildParallel(){
   // 装飾
   for (let x = -endX; x < endX; x += rand(10, 15)) { addBuilding(x, curbZ - 10, rand(8, 12), rand(8, 10)); addBuilding(x + 5, 15, rand(8, 12), rand(8, 10)); }
   for (let x = -endX + 4; x < endX; x += rand(9, 14)) { addTree(x, curbZ - 2.3); }
-  return {
-    type:'parallel', target: mkRect(tx, tz, (laneEdge - curbZ)/2, Lsp/2, Math.PI/2), tx, tz, curbZ, reqH: Math.PI/2,
-    spawn: { x: tx - Lsp*1.6 - spec.cOff, z: rand(-0.2, 0.3), h: Math.PI/2 },
-    baseline: 1,
-  };
+  const base = { type:'parallel', target: mkRect(tx, tz, (laneEdge - curbZ)/2, Lsp/2, Math.PI/2), tx, tz, curbZ, reqH: Math.PI/2 };
+  if (S.task === 'exit') {
+    const cz = curbZ + 0.3 + spec.wid/2;
+    return { ...base, task:'exit', spawn:{ x: tx - 0.25 - spec.cOff, z: cz, h: Math.PI/2 },
+      goal: mkRect(tx + Lsp*1.8, 0, 1.5, 1.75, 0), goalH: Math.PI/2, baseline: 1 };
+  }
+  return { ...base, spawn: { x: tx - Lsp*1.6 - spec.cOff, z: rand(-0.2, 0.3), h: Math.PI/2 }, baseline: 1 };
 }
 
 // ---------------- 予測軌跡リボン ----------------
@@ -764,11 +734,24 @@ function buildLevel(){
   setAvmFrustum();
   level = S.mode === 'parallel' ? buildParallel() : buildBay();
   // 目標枠ハイライト
-  const t = level.target;
-  const isPar = level.type === 'parallel';
+  const t = level.task === 'exit' ? level.goal : level.target;
+  const isPar = level.task !== 'exit' && level.type === 'parallel';
   targetMesh = new THREE.Mesh(new THREE.PlaneGeometry(isPar ? t.hl*2 - 0.2 : t.hw*2 - 0.2, isPar ? t.hw*2 - 0.2 : t.hl*2 - 0.2),
     new THREE.MeshBasicMaterial({ color:0x2fa8ff, transparent:true, opacity:0.28, depthWrite:false }));
   targetMesh.rotation.x = -Math.PI/2; targetMesh.position.set(t.x, 0.015, t.z); world.add(targetMesh);
+  if (level.task === 'exit') {
+    // 出口の向きを示す矢印
+    const sh = new THREE.Shape(); sh.moveTo(0, 1.1); sh.lineTo(0.9, -0.4); sh.lineTo(0.3, -0.4); sh.lineTo(0.3, -1.1); sh.lineTo(-0.3, -1.1); sh.lineTo(-0.3, -0.4); sh.lineTo(-0.9, -0.4); sh.closePath();
+    const arrow = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.75, depthWrite:false }));
+    arrow.rotation.order = 'YXZ'; arrow.rotation.set(-Math.PI/2, level.goalH + Math.PI, 0);   // 形の +y が進行方向を向くように
+    arrow.position.set(t.x, 0.02, t.z);
+    world.add(arrow);
+  }
+  document.body.classList.toggle('parallel', S.mode === 'parallel');
+  document.body.classList.toggle('exitTask', level.task === 'exit');
+  zoom = level.task === 'exit' ? 22 : 17;   // 出庫は出口まで見えるように少し引きで開始
+  // 俯瞰（固定）の画面上方向：出庫は通路が横に流れる向き（出口が画面の左右に来る）
+  level.topUp = level.task !== 'exit' ? [1, 0] : level.type === 'bay' ? [0, -level.tRow] : [0, 1];
   // プレイヤー車
   player = buildCarMesh(C, 0xff7a1a, true);
   world.add(player);
@@ -782,7 +765,6 @@ function buildLevel(){
   driverCam.position.set(-(C.wid/2 - 0.45), u.cabinTop - 0.32, u.cabinFrontZ - 0.62);
   [camL, camR, camRear, camBack, driverCam].forEach(c => player.add(c));
   resetPlayer();
-  $('#modeLabel').textContent = `${MODE_LABEL[S.mode]} ／ ${CROWD[S.crowd].label} ／ ${C.label}`;
 }
 
 // ---------------- 入力 ----------------
@@ -814,10 +796,10 @@ function handleKey(code){
       const order = ['beep', 'voice', 'off'];
       S.backSound = order[(order.indexOf(S.backSound) + 1) % order.length]; saveSettings();
       stopBackVoice(); backT = 0;
-      showToastInfo('バック音: ' + { beep:'ピー音', voice:'音声', off:'なし' }[S.backSound]); break;
+      showToastInfo('バック音：' + { beep:'ピー', voice:'音声', off:'なし' }[S.backSound]); break;
     }
-    case 'KeyM': S.sound = !S.sound; saveSettings(); showToastInfo(S.sound ? 'センサー音 ON' : 'センサー音 OFF'); break;
-    case 'KeyG': S.guide = !S.guide; saveSettings(); showToastInfo(S.guide ? '軌跡ガイド ON' : '軌跡ガイド OFF'); break;
+    case 'KeyM': S.sound = !S.sound; saveSettings(); showToastInfo(S.sound ? 'センサー音 オン' : 'センサー音 オフ'); break;
+    case 'KeyG': S.guide = !S.guide; saveSettings(); showToastInfo(S.guide ? '予測軌跡 オン' : '予測軌跡 オフ'); break;
     case 'KeyU': toggleMirrorPad(); break;
     case 'Digit1': if (mirrorAdj.open) selectMirror('L'); break;
     case 'Digit2': if (mirrorAdj.open) selectMirror('R'); break;
@@ -935,8 +917,8 @@ $('#mClose').addEventListener('click', () => toggleMirrorPad(false));
 // 標準マッピング（位置基準）: 0=下(B) 1=右(A) 2=左(Y) 3=上(X) 4=L 5=R 6=ZL 7=ZR 8=− 9=+ 12-15=十字キー
 const pad = { connected:false, steer:0, lookX:0, prev:[] };
 const dz = (v, d = 0.15) => Math.abs(v) < d ? 0 : Math.sign(v) * (Math.abs(v) - d) / (1 - d);
-addEventListener('gamepadconnected', e => { showToastInfo('🎮 コントローラーを接続しました'); document.body.classList.add('gamepad'); });
-addEventListener('gamepaddisconnected', () => { showToastInfo('🎮 コントローラーが切断されました'); document.body.classList.remove('gamepad'); });
+addEventListener('gamepadconnected', e => { showToastInfo('コントローラーを接続しました'); document.body.classList.add('gamepad'); });
+addEventListener('gamepaddisconnected', () => { showToastInfo('コントローラーが切断されました'); document.body.classList.remove('gamepad'); });
 function pollGamepad(dt){
   const list = navigator.getGamepads ? navigator.getGamepads() : [];
   const gp = [...list].find(g => g && g.connected);
@@ -1075,7 +1057,7 @@ function physics(dt){
     const impact = Math.abs(st.v);
     st.v = 0;
     if (!st.touching) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触！'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1109,6 +1091,10 @@ let beepT = 0;
 
 // ---------------- 判定 ----------------
 function evaluate(){
+  if (level.task === 'exit') {
+    const pr = playerRect(st), inGoal = pointIn(level.goal, pr.x, pr.z), err = wrapAng(st.h - level.goalH);
+    return { exit:true, inGoal, done: inGoal && Math.abs(err) < 40*D2R, err, allIn:false, ready:false, flipped:false, pr };
+  }
   const pr = playerRect(st), t = level.target;
   const allIn = corners(pr).every(([x, z]) => pointIn(t, x, z, 0.03));
   const err = wrapAng(st.h - level.reqH);
@@ -1117,13 +1103,15 @@ function evaluate(){
 }
 function tryFinish(){
   const ev = evaluate();
-  if (!ev.allIn) { showToastInfo('まだ枠に収まっていません'); return; }
-  if (ev.flipped) { showToastInfo('車の向きが逆です'); return; }
-  if (!ev.ready) { showToastInfo('角度がずれています（8°以内に）'); return; }
-  if (Math.abs(st.v) > 0.05) { showToastInfo('完全に停止してください'); return; }
+  if (ev.exit) { showToastInfo('出口まで進むと完了します'); return; }
+  if (!ev.allIn) { showToastInfo('まだ枠に入っていません'); return; }
+  if (ev.flipped) { showToastInfo('向きが逆です'); return; }
+  if (!ev.ready) { showToastInfo('角度を8°以内に'); return; }
+  if (Math.abs(st.v) > 0.05) { showToastInfo('止まってから完了してください'); return; }
   showResult(ev);
 }
 function showResult(ev){
+  if (game !== 'play') return;
   game = 'result';
   st.v = 0;
   const rows = [], tips = [];
@@ -1133,6 +1121,12 @@ function showResult(ev){
   if (level.type === 'parallel' || st.curbs) add('縁石接触', `${st.curbs} 回`, st.curbs*8);
   const kiri = Math.max(0, st.gearChanges - level.baseline);
   add('切り返し', `${kiri} 回`, Math.min(20, kiri*4));
+  if (ev.exit) {
+    add('所要時間', `${st.time.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, st.time - 25)*0.4)));
+    if (st.hits) tips.push('ハンドルを切ると前（バック時は前の外側）が大きく振れます。隣の車との間隔をミラーで確認しましょう。');
+    else if (kiri > 1) tips.push('枠からまっすぐ十分に出てからハンドルを切ると、切り返しが減ります。');
+    return finishResult(score, rows, tips, '出庫完了');
+  }
   const angDeg = Math.abs(ev.err)/D2R;
   add('角度のずれ', `${angDeg.toFixed(1)}°`, Math.round(Math.max(0, angDeg - 1.5)*2));
   const pr = ev.pr;
@@ -1153,15 +1147,19 @@ function showResult(ev){
   const tm = st.time;
   add('所要時間', `${tm.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, tm - 45)*0.3)));
   score = Math.max(0, Math.round(score));
-  if (st.hits) tips.push('接触した場合は一度止まり、ミラーで周囲を確認してから切り返しましょう。');
-  if (kiri > 2) tips.push('切り返しが多めです。ハンドルを切り始める位置を早め/遅めに調整してみましょう。');
-  if (!tips.length) tips.push('とても上手です！ 混雑度を上げたり枠を狭くして挑戦してみましょう。');
+  if (st.hits) tips.unshift('当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。');
+  if (kiri > 2) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
+  return finishResult(score, rows, tips, '駐車完了');
+}
+function finishResult(score, rows, tips, title){
+  score = Math.max(0, Math.round(score));
+  $('#resTitle').textContent = title;
   const rank = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : 'C';
   $('#rank').textContent = rank;
-  $('#rank').style.color = { S:'#ffd23f', A:'#3ddc84', B:'#48b6ff', C:'#ff8080' }[rank];
+  $('#rank').style.color = { S:'#f2c14e', A:'#5ccf8a', B:'#6fb3e8', C:'#e88' }[rank];
   $('#score').textContent = `${score} 点`;
   $('#breakdown').innerHTML = rows.map(([l, v, p]) => `<tr><td>${l}</td><td>${v}</td><td class="${p ? 'neg' : ''}">${p ? '−' + p : '±0'}</td></tr>`).join('');
-  $('#tips').innerHTML = tips.map(t => '💡 ' + t).join('<br>');
+  $('#tips').textContent = tips[0] || '';
   $('#result').classList.remove('off');
   startReplay();
   tone(660, 0.15, 0.08); setTimeout(() => tone(880, 0.25, 0.08), 150);
@@ -1189,7 +1187,12 @@ function openMenu(){
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
   syncMenu();
 }
+const TASK_NOTE = {
+  park:{ back:'通路から、青い枠にバックで入れます。', front:'通路から、青い枠に前から入れます。', parallel:'路肩の前後の車の間に入れます。' },
+  exit:{ back:'後ろ向きに止めた車を、前進で通路へ出します。', front:'前向きに止めた車を、バックで通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
+};
 function syncMenu(){
+  $('#taskNote').textContent = TASK_NOTE[S.task][S.mode];
   document.querySelectorAll('.opt[data-key]').forEach(o => {
     o.querySelectorAll('button').forEach(b => b.classList.toggle('on', S[o.dataset.key] === b.dataset.v));
   });
@@ -1212,19 +1215,17 @@ $('#rNew').addEventListener('click', buildLevel);
 $('#rMenu').addEventListener('click', openMenu);
 
 function updateHUD(ev, son){
-  $('#sTime').textContent = st.time.toFixed(1);
+  const tm = Math.floor(st.time); $('#sTime').textContent = `${Math.floor(tm/60)}:${String(tm % 60).padStart(2, '0')}`;
   $('#sHit').textContent = st.hits;
   $('#sCurb').textContent = st.curbs;
   $('#sKiri').textContent = Math.max(0, st.gearChanges - level.baseline);
   const ad = ev.err / D2R;
-  $('#sAng').textContent = ev.flipped ? '向きが逆' : `${Math.abs(ad).toFixed(1)}°`;
-  $('#speed').innerHTML = `${(Math.abs(st.v)*3.6).toFixed(1)}<small>km/h</small>`;
+  $('#speed').innerHTML = `${(Math.abs(st.v)*3.6).toFixed(0)}<small>km/h</small>`;
   document.querySelectorAll('.gears div').forEach(d => d.classList.toggle('on', d.dataset.g === st.gear));
-  $('#camname').textContent = 'カメラ: ' + CAM_LABEL[CAM_MODES[camIdx]];
   const wheelDeg = st.delta / C.maxSteer * 540;
   $('#wheel').setAttribute('transform', `rotate(${-wheelDeg})`);
   const tire = st.delta / D2R;
-  $('#wheelInfo').textContent = `タイヤ ${Math.abs(tire).toFixed(0)}° ${tire > 0.5 ? '左' : tire < -0.5 ? '右' : ''}`;
+  $('#sonar').classList.toggle('on', son.some(d => d < SONAR_RANGE));
   son.forEach((d, i) => { const c = sonarColor(d); const p = $('#son' + i); if (p) p.setAttribute('stroke', c); const q = $('#tson' + i); if (q) q.setAttribute('stroke', c); });
   if (IS_TOUCH) $('#tWheelG').setAttribute('transform', `rotate(${-wheelDeg})`);
   const isDriver = CAM_MODES[camIdx] === 'driver';
@@ -1232,7 +1233,7 @@ function updateHUD(ev, son){
   if (isDriver) {
     $('#cockpitWheel').setAttribute('transform', `rotate(${-wheelDeg})`);
     const ci = $('#cockpitInfo'), straight = Math.abs(tire) < 0.5;
-    ci.textContent = straight ? 'タイヤ まっすぐ' : `タイヤ ${Math.abs(tire).toFixed(0)}° ${tire > 0 ? '左' : '右'}　（ハンドル ${Math.abs(wheelDeg).toFixed(0)}°）`;
+    ci.textContent = straight ? 'まっすぐ' : `${tire > 0 ? '左' : '右'} ${Math.abs(tire).toFixed(0)}°`;
     ci.classList.toggle('center', straight);
   }
   $('#rearView').classList.toggle('on', st.gear === 'R');
@@ -1240,12 +1241,18 @@ function updateHUD(ev, son){
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
   else if (game !== 'play') showMsg('', '');
-  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '✅ 枠に収まりました！「完了」で採点' : '✅ 枠に収まりました！ Enter で駐車完了', 'ok');
-  else if (ev.ready) showMsg(IS_TOUCH ? '枠内です。停止してください（ブレーキ）' : '枠内です。停止してください（Space）', 'ok');
-  else if (ev.allIn && ev.flipped) showMsg('車の向きが逆です', 'warn');
-  else if (ev.allIn) showMsg(`角度を合わせましょう（ずれ ${Math.abs(ad).toFixed(0)}°）`, 'warn');
-  else if (predHit) showMsg(`⚠ このまま${st.gear === 'R' ? '下がる' : '進む'}と${predHit.side}${predHit.part}が接触します（あと${predHit.dist.toFixed(1)}m）`, 'warn');
-  else if (!st.started) showMsg(IS_TOUCH ? (S.mode === 'parallel' ? '青い枠に縦列駐車しよう（▲で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（▲で発進、▼で後退）' : '青い枠に前から駐車しよう（▲で発進）') : S.mode === 'parallel' ? '青い枠に縦列駐車しよう（W で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（W で発進、S で後退）' : '青い枠に前から駐車しよう（W で発進）', '');
+  else if (ev.exit) {
+    if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
+    else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
+    else if (!st.started) showMsg('矢印の出口まで出しましょう', '');
+    else showMsg('', '');
+  }
+  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '枠に入りました。「完了」で採点' : '枠に入りました。Enter で採点', 'ok');
+  else if (ev.ready) showMsg('枠に入っています。止まってください', 'ok');
+  else if (ev.allIn && ev.flipped) showMsg('向きが逆です', 'warn');
+  else if (ev.allIn) showMsg(`角度のずれ ${Math.abs(ad).toFixed(0)}°`, 'warn');
+  else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
+  else if (!st.started) showMsg({ back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
   else showMsg('', '');
 }
 
@@ -1392,7 +1399,7 @@ function updateScene(dt){
   // メインカメラ
   const mode = CAM_MODES[camIdx];
   if (mode === 'top' || mode === 'topRot') {
-    mainCam.up.set(mode === 'top' ? 1 : fx, 0, mode === 'top' ? 0 : fz);
+    mainCam.up.set(mode === 'top' ? level.topUp[0] : fx, 0, mode === 'top' ? level.topUp[1] : fz);
     mainCam.position.set(cx, zoom, cz);
     mainCam.lookAt(cx, 0, cz);
   } else if (mode === 'chase') {
@@ -1408,7 +1415,7 @@ function updateScene(dt){
 function render(mode, ev){
   const u = player.userData;
   targetMesh.visible = S.highlight;
-  targetMesh.material.color.setHex(ev.ready ? 0x3ddc84 : ev.allIn ? 0xffd23f : 0x2fa8ff);
+  targetMesh.material.color.setHex(ev.exit ? 0x3ddc84 : ev.ready ? 0x3ddc84 : ev.allIn ? 0xffd23f : 0x2fa8ff);
   if (mode === 'replay') {
     targetMesh.material.color.setHex(0x3ddc84);
     mainCam.layers.set(0); mainCam.layers.enable(6);
@@ -1470,6 +1477,7 @@ function loop(t){
   }
   const mode = updateScene(dt);
   const ev = evaluate();
+  if (game === 'play' && ev.exit && ev.done) showResult(ev);
   const son = sonar();
   updateBackSound(dt, Math.min(son[3], son[4], son[5]));
   // センサー音
@@ -1489,7 +1497,7 @@ document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 resize();
 buildLevel();
 game = 'menu';
-if (IS_TOUCH) { document.querySelectorAll('.sub .keys-only').forEach(e => e.style.display = 'none'); $('#subTouch').style.display = 'inline'; }
+
 if (/[?&]start\b/.test(location.search)) startGame();
 requestAnimationFrame(loop);
 </script>
