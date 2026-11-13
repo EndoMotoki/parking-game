@@ -277,7 +277,7 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
     </div></div>
 
     <div class="opt"><label>アシスト</label><div class="checks">
-      <label><input type="checkbox" id="o-guide" checked> 予測軌跡ガイド</label>
+      <label><input type="checkbox" id="o-guide" checked> 予測軌跡ガイド＋接触予測</label>
       <label><input type="checkbox" id="o-highlight" checked> 目標の枠をハイライト</label>
       <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
       <label><input type="checkbox" id="o-mirrorTilt" checked> リバース連動ミラー（下向き）</label>
@@ -288,12 +288,14 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
 
     <div class="keys touch-only">
       <b>タッチ操作</b>：左下のハンドルを指で回す／右下の ▲ 前進・▼ 後退・■ ブレーキを押している間だけ動きます。<br>
+      軌跡: 黄=後ろの角、橙=前の振り出し、水色=前の角、紫=内輪差、赤=このままだと接触。<br>
       🐢 微速で速度を抑えられます。2本指のピンチで俯瞰の拡大・縮小。<br>
       枠内で停止したら上部の「✅ 完了」で採点。「📷 カメラ」で視点切替。横向き推奨です。
     </div>
     <div class="keys keys-only">
       <kbd>W</kbd> 前進（D）／後退中はブレーキ　<kbd>S</kbd> 後退（R）／前進中はブレーキ　<kbd>A</kbd><kbd>D</kbd> ハンドル<br>
       <kbd>Space</kbd> ブレーキ　<kbd>Shift</kbd> 押しながらで微速　<kbd>C</kbd> カメラ切替　<kbd>Q</kbd><kbd>E</kbd><kbd>V</kbd> 目視確認（運転席視点）<br>
+      軌跡ガイド: <span style="color:#ffd23f">黄=後ろの角</span>・<span style="color:#ff8a2a">橙=前の振り出し</span>（後退時）／<span style="color:#48d6ff">水色=前の角</span>・<span style="color:#b48cff">紫=内輪差</span>（前進時）・<span style="color:#ff6b6b">赤=このままだと接触</span><br>
       停止して枠に収まったら <kbd>Enter</kbd> で採点。　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置　<kbd>Esc</kbd> この画面
     </div>
   </div>
@@ -620,7 +622,12 @@ function setRibbon(m, pts, w = 0.07, y = 0.035){
 const PATH_N = 36;
 const rearPaths = [makeRibbon(PATH_N, 0xffd23f, 1), makeRibbon(PATH_N, 0xffd23f, 1)];
 const frontPaths = [makeRibbon(PATH_N, 0x48d6ff, 2), makeRibbon(PATH_N, 0x48d6ff, 2)];
-[...rearPaths, ...frontPaths].forEach(m => scene.add(m));
+// 後退時の前の振り出し（layer 4）と、前進時の後輪側の内輪差（layer 5）。メイン画面のみ表示
+const swingPaths = [makeRibbon(PATH_N, 0xff8a2a, 4, 0.75), makeRibbon(PATH_N, 0xff8a2a, 4, 0.75)];
+const innerPaths = [makeRibbon(PATH_N, 0xb48cff, 5, 0.75), makeRibbon(PATH_N, 0xb48cff, 5, 0.75)];
+[...rearPaths, ...frontPaths, ...swingPaths, ...innerPaths].forEach(m => scene.add(m));
+const PATH_COLORS = new Map([...rearPaths.map(m => [m, 0xffd23f]), ...frontPaths.map(m => [m, 0x48d6ff]),
+  ...swingPaths.map(m => [m, 0xff8a2a]), ...innerPaths.map(m => [m, 0xb48cff])]);
 
 function staticBackGuides(g, spec){
   // 車両固定のガイド線（バックモニター用 layer 3）
@@ -992,6 +999,7 @@ function updateHUD(ev, son){
   else if (ev.ready) showMsg(IS_TOUCH ? '枠内です。停止してください（ブレーキ）' : '枠内です。停止してください（Space）', 'ok');
   else if (ev.allIn && ev.flipped) showMsg('車の向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度を合わせましょう（ずれ ${Math.abs(ad).toFixed(0)}°）`, 'warn');
+  else if (predHit) showMsg(`⚠ このまま${st.gear === 'R' ? '下がる' : '進む'}と${predHit.side}${predHit.part}が接触します（あと${predHit.dist.toFixed(1)}m）`, 'warn');
   else if (!st.started) showMsg(IS_TOUCH ? (S.mode === 'parallel' ? '青い枠に縦列駐車しよう（▲で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（▲で発進、▼で後退）' : '青い枠に前から駐車しよう（▲で発進）') : S.mode === 'parallel' ? '青い枠に縦列駐車しよう（W で発進）' : S.mode === 'back' ? '青い枠にバックで駐車しよう（W で発進、S で後退）' : '青い枠に前から駐車しよう（W で発進）', '');
   else showMsg('', '');
 }
@@ -1013,6 +1021,31 @@ function predictPath(dir, lz){
   }
   return res;
 }
+// このままの舵角で進んだときに最初にぶつかる位置を予測
+function predictHit(dir){
+  const total = dir < 0 ? 3.6 : 4.2, step = 0.08;
+  let s = { x: st.x, z: st.z, h: st.h };
+  for (let d = step; d <= total + 1e-6; d += step) {
+    const fx = Math.sin(s.h), fz = Math.cos(s.h);
+    s = { x: s.x + dir*step*fx, z: s.z + dir*step*fz, h: s.h + dir*step / C.wb * Math.tan(st.delta) };
+    const pr = playerRect(s);
+    for (const o of obstacles) {
+      if (!overlap(pr, o)) continue;
+      // 前半分／後ろ半分のどちらが当たるか
+      const q = C.len/4;
+      const front = overlap(mkRect(pr.x + pr.fx*q, pr.z + pr.fz*q, pr.hw, q, s.h), o);
+      const rear = overlap(mkRect(pr.x - pr.fx*q, pr.z - pr.fz*q, pr.hw, q, s.h), o);
+      // 当たる側：障害物上で車に最も近い点の、車から見た左右
+      const [of, or] = localOf(o, pr.x, pr.z);
+      const cf = clamp(of, -o.hl, o.hl), cr = clamp(or, -o.hw, o.hw);
+      const [, lr] = localOf(pr, o.x + o.fx*cf + o.rx*cr, o.z + o.fz*cf + o.rz*cr);
+      const part = front && !rear ? '前' : rear && !front ? '後ろ' : (dir < 0 ? '後ろ' : '前');
+      return { dist: d, part, side: lr > 0 ? '左' : '右' };
+    }
+  }
+  return null;
+}
+let predHit = null;
 function updateScene(dt){
   const fx = Math.sin(st.h), fz = Math.cos(st.h);
   const cx = st.x + fx*C.cOff, cz = st.z + fz*C.cOff;
@@ -1034,6 +1067,12 @@ function updateScene(dt){
   const rp = predictPath(-1, -C.rearOH), fp = predictPath(1, C.wb + C.frontOH);
   rearPaths.forEach((m, i) => setRibbon(m, rp[i]));
   frontPaths.forEach((m, i) => setRibbon(m, fp[i]));
+  const sp = predictPath(-1, C.wb + C.frontOH), ip = predictPath(1, -C.rearOH);
+  swingPaths.forEach((m, i) => setRibbon(m, sp[i], 0.06));
+  innerPaths.forEach((m, i) => setRibbon(m, ip[i], 0.06));
+  // 接触予測（ガイドON & ギアが R/D のとき）
+  predHit = (S.guide && (st.gear === 'R' || st.gear === 'D')) ? predictHit(st.gear === 'R' ? -1 : 1) : null;
+  for (const [m, c] of PATH_COLORS) m.material.color.setHex(predHit ? 0xff3b3b : c);
   // メインカメラ
   const mode = CAM_MODES[camIdx];
   if (mode === 'top' || mode === 'topRot') {
@@ -1056,8 +1095,8 @@ function render(mode, ev){
   targetMesh.material.color.setHex(ev.ready ? 0x3ddc84 : ev.allIn ? 0xffd23f : 0x2fa8ff);
   const cam = mode === 'driver' ? driverCam : mainCam;
   cam.layers.set(0);
-  if (S.guide && st.gear === 'R') cam.layers.enable(1);
-  if (S.guide && st.gear === 'D') cam.layers.enable(2);
+  if (S.guide && st.gear === 'R') { cam.layers.enable(1); cam.layers.enable(4); }
+  if (S.guide && st.gear === 'D') { cam.layers.enable(2); cam.layers.enable(5); }
   if (mode === 'driver') { u.cabin.visible = false; u.roof.visible = false; }
   mainR.render(scene, cam);
   u.cabin.visible = true; u.roof.visible = true;
