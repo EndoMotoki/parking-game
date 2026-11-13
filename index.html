@@ -201,7 +201,7 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
   <kbd>Q</kbd>/<kbd>E</kbd> 左右目視　<kbd>V</kbd> 後方目視（運転席）<br>
   <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>N</kbd> 新しい配置<br>
   <kbd>U</kbd> ミラー調整（ミラーをクリックでも可）<br>
-  <kbd>G</kbd> 軌跡ガイド　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> 音　<kbd>Esc</kbd> 設定
+  <kbd>G</kbd> 軌跡ガイド　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音　<kbd>Esc</kbd> 設定
 </div>
 
 <div class="panel" id="gearbox">
@@ -320,6 +320,12 @@ body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:cal
       <button data-v="narrow">狭め</button>
     </div></div>
 
+    <div class="opt" data-key="backSound"><label>R（バック）に入れたときの音（Bキーで切替）</label><div class="seg">
+      <button data-v="beep">ピー音<small>乗用車の車内警告音</small></button>
+      <button data-v="voice">音声<small>「バックします」トラック風</small></button>
+      <button data-v="off">なし</button>
+    </div></div>
+
     <div class="opt" data-key="cam"><label>開始時のカメラ（Cキーでいつでも切替）</label><div class="seg">
       <button data-v="top">俯瞰</button>
       <button data-v="chase">追従</button>
@@ -398,7 +404,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
@@ -760,6 +766,12 @@ function handleKey(code){
     case 'KeyN': buildLevel(); break;
     case 'Escape': openMenu(); break;
     case 'Enter': tryFinish(); break;
+    case 'KeyB': {
+      const order = ['beep', 'voice', 'off'];
+      S.backSound = order[(order.indexOf(S.backSound) + 1) % order.length]; saveSettings();
+      stopBackVoice(); backT = 0;
+      showToastInfo('バック音: ' + { beep:'ピー音', voice:'音声', off:'なし' }[S.backSound]); break;
+    }
     case 'KeyM': S.sound = !S.sound; saveSettings(); showToastInfo(S.sound ? 'センサー音 ON' : 'センサー音 OFF'); break;
     case 'KeyG': S.guide = !S.guide; saveSettings(); showToastInfo(S.guide ? '軌跡ガイド ON' : '軌跡ガイド OFF'); break;
     case 'KeyU': toggleMirrorPad(); break;
@@ -877,7 +889,46 @@ $('#mClose').addEventListener('click', () => toggleMirrorPad(false));
 
 // ---------------- 音 ----------------
 let actx = null;
-function ensureAudio(){ if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } else if (actx.state === 'suspended') actx.resume(); }
+let speechPrimed = false;
+function ensureAudio(){
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } else if (actx.state === 'suspended') actx.resume();
+  // iOS は最初の読み上げをユーザー操作中に行う必要があるので、無音で一度だけ呼んでおく
+  if (!speechPrimed && 'speechSynthesis' in window) { speechPrimed = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e) {} }
+}
+// ---- バック音 ----
+let backT = 0, backSpeaking = false;
+function backChime(){
+  // 乗用車の車内警告音風「ピー」（やわらかい立ち上がり）
+  if (!actx) return;
+  const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine'; o.frequency.value = 960;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.02);
+  g.gain.setValueAtTime(0.07, t + 0.30); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.45);
+}
+function speakBack(){
+  if (!('speechSynthesis' in window)) return false;
+  const u = new SpeechSynthesisUtterance('バックします。ご注意ください。');
+  u.lang = 'ja-JP'; u.rate = 1.0; u.pitch = 1.1; u.volume = 0.9;
+  const ja = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith('ja'));
+  if (ja) u.voice = ja;
+  u.onend = u.onerror = () => { backSpeaking = false; backT = 0.8; };
+  backSpeaking = true; speechSynthesis.speak(u);
+  return true;
+}
+function stopBackVoice(){ if (backSpeaking && 'speechSynthesis' in window) speechSynthesis.cancel(); backSpeaking = false; }
+function updateBackSound(dt, rearMin){
+  const active = game === 'play' && st.gear === 'R' && S.backSound !== 'off';
+  if (!active) { backT = 0; stopBackVoice(); return; }
+  backT -= dt;
+  if (S.backSound === 'beep') {
+    // 障害物センサーが鳴っている間はそちらを優先
+    const sonarOn = S.sound && rearMin < SONAR_RANGE;
+    if (backT <= 0) { if (!sonarOn) backChime(); backT = 1.0; }
+  } else if (S.backSound === 'voice') {
+    if (backT <= 0 && !backSpeaking) { if (!speakBack()) backChime(); backT = 1.2; }
+  }
+}
 function tone(freq, dur, vol = 0.07, type = 'sine'){
   if (!actx) return;
   const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
@@ -1249,6 +1300,7 @@ function loop(t){
   const mode = updateScene(dt);
   const ev = evaluate();
   const son = sonar();
+  updateBackSound(dt, Math.min(son[3], son[4], son[5]));
   // センサー音
   if (S.sound && game === 'play' && (st.gear === 'R' || st.gear === 'D')) {
     const d = st.gear === 'R' ? Math.min(son[3], son[4], son[5]) : Math.min(son[0], son[1], son[2]);
