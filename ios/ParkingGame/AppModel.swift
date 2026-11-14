@@ -81,6 +81,10 @@ final class AppModel: ObservableObject {
                     sendToWeb?("window.releaseTouchInputs && releaseTouchInputs()")
                 }
             }
+        case "log":
+            #if DEBUG
+            print("[web]", msg["msg"] as? String ?? "")
+            #endif
         case "buy":
             Task { await store.buy() }
         case "restore":
