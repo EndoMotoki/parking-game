@@ -1274,7 +1274,11 @@ function physics(dt){
   if (hit) {
     const impact = Math.abs(st.v);
     st.v = 0;
-    if (!st.touching) {
+    // 当たった直後は止まった位置から数mmずつにじり寄るので、そのたびに数えないように、
+    // 前の接触から 30cm 以上動いたとき（または当たった物の種類が変わったとき）だけ新しい接触として数える
+    const fresh = !(st.freeDist < 0.3) || hit !== st.lastHit;
+    if (!st.touching && fresh && (hit === 'body' || hit === 'curb')) { st.freeDist = 0; st.lastHit = hit; }
+    if (!st.touching && fresh) {
       if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触 ・ 0点'); tone(90, 0.25, 0.25, 'square'); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
@@ -1282,6 +1286,7 @@ function physics(dt){
     st.touching = true;
   } else {
     st.touching = false;
+    if (st.freeDist !== undefined) st.freeDist += Math.abs(st.v) * dt;
     st.x = n.x; st.z = n.z; st.h = n.h;
     // 進行方向の切り替わりを数える（0.3m 以上その向きに動いたときだけ）
     const sg = Math.sign(st.v);
