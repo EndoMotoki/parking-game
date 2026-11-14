@@ -172,8 +172,10 @@ body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 8px;font-size:1
 body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + var(--sat) + 18vw + 44px)}
 body.touch.portrait #stats{top:calc(8px + var(--sat) + 18vw + 84px)}
 body.touch.portrait #gearbox{top:calc(8px + var(--sat) + 18vw + 84px)}
-body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(38vh,160px) + 24px);transform:translateX(-50%);
-  z-index:9;background:var(--hud);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
+body.touch.portrait.rotateHintOn #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(38vh,160px) + 24px);transform:translateX(-50%);
+  z-index:9;background:var(--hud);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);white-space:nowrap;
+  transition:opacity .6s;pointer-events:auto}
+#rotateHint.fade{opacity:0}
 .pad-only{display:none}
 body.gamepad .pad-only{display:inline}
 #tSonar{display:none}
@@ -355,7 +357,8 @@ body.exitTask #tDone{display:none}
         <kbd>G</kbd> 軌跡　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音
       </div>
       <div class="keys touch-only">
-        左下のハンドルを指で回し、右下のペダルを押している間だけ進みます。ミラーをタップすると角度を調整できます。
+        左下のハンドルを指で回し、右下のペダルを押している間だけ進みます。ミラーをタップすると角度を調整できます。<br>
+        スマホは横向きにすると、ミラーやハンドルが大きくなって遊びやすくなります。
       </div>
       <div class="keys g">
         コントローラー：ZR 前進　ZL 後退　B ブレーキ　Lスティック ハンドル　L 微速<br>
@@ -852,6 +855,19 @@ $('#gearbox').appendChild($('#tSonar'));
 if (IS_TOUCH) document.body.classList.add('touch');
 const touchSteer = { active:false, id:null, lastAng:0, cwDeg:0 };
 let slowToggle = false;
+// 「横向きのほうが遊びやすいです」：縦向きでスタートしたとき、最初の2回だけ4秒間出す（タップで消える）
+function showRotateHint(){
+  if (!IS_TOUCH || innerHeight <= innerWidth) return;
+  let n = 0; try { n = +localStorage.getItem('rotateHintCount') || 0; } catch(e) {}
+  if (n >= 2) return;
+  try { localStorage.setItem('rotateHintCount', n + 1); } catch(e) {}
+  const el = $('#rotateHint');
+  el.classList.remove('fade'); document.body.classList.add('rotateHintOn');
+  clearTimeout(showRotateHint.t1); clearTimeout(showRotateHint.t2);
+  showRotateHint.t1 = setTimeout(() => el.classList.add('fade'), 4000);
+  showRotateHint.t2 = setTimeout(() => document.body.classList.remove('rotateHintOn'), 4700);
+}
+$('#rotateHint').addEventListener('click', () => document.body.classList.remove('rotateHintOn'));
 function updateOrientation(){ document.body.classList.toggle('portrait', innerHeight > innerWidth); }
 updateOrientation();
 document.addEventListener('pointerdown', ensureAudio, { capture:true });
@@ -1285,6 +1301,7 @@ function startGame(){
   camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
   $('#menu').classList.add('off');
   buildLevel();
+  showRotateHint();
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 }
 $('#startBtn').addEventListener('click', startGame);
