@@ -1128,6 +1128,9 @@ function pollGamepad(dt){
   pad.prev = gp.buttons.map((_, i) => b(i));
 }
 function rumble(ms = 180, strong = 0.8){
+  // スマホも振動させる：iOS アプリ版はアプリに頼む（iPhone のブラウザは振動できない）、Android のブラウザは vibrate
+  if (typeof appPost === 'function') appPost({ type:'haptic', strong });
+  if (IS_TOUCH && navigator.vibrate) { try { navigator.vibrate(ms); } catch(e) {} }
   const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(g => g && g.connected);
   try { gp?.vibrationActuator?.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: strong }); } catch(e) {}
 }
