@@ -1105,7 +1105,22 @@ function rumble(ms = 180, strong = 0.8){
 let actx = null;
 let speechPrimed = false;
 function ensureAudio(){
-  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} } else if (actx.state === 'suspended') actx.resume();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (actx && actx.state === 'closed') actx = null;
+  if (!actx) { try { actx = new AC(); } catch(e) {} }
+  else if (actx.state !== 'running') {
+    // iOS ではアプリを裏に回すと 'interrupted' や 'suspended' になる。タップのときに再開し、
+    // 前回の再開がうまくいかなかったときは作り直す
+    if (actx.resumeFailed) { try { actx.close(); } catch(e) {} try { actx = new AC(); } catch(e) { actx = null; } }
+    else {
+      const c = actx;
+      try { c.resume().catch(() => {}); } catch(e) {}
+      setTimeout(() => {
+        if (c === actx && c.state !== 'running') c.resumeFailed = true;
+        if (typeof appPost === 'function') appPost({ type:'log', msg:'audio after tap: ' + (actx ? actx.state : 'none') });
+      }, 300);
+    }
+  }
   // iOS は最初の読み上げをユーザー操作中に行う必要があるので、無音で一度だけ呼んでおく
   if (!speechPrimed && 'speechSynthesis' in window) { speechPrimed = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e) {} }
 }
@@ -1131,6 +1146,13 @@ function speakBack(){
   return true;
 }
 function stopBackVoice(){ if (backSpeaking && 'speechSynthesis' in window) speechSynthesis.cancel(); backSpeaking = false; }
+// アプリを裏に回したとき：読み上げを止め（終わりの通知が来ないまま止まるのを防ぐ）、戻ったら音を再開する
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { stopBackVoice(); speechPrimed = false; return; }
+  if (actx && actx.state !== 'running') { try { actx.resume().catch(() => {}); } catch(e) {} }
+  if ('speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch(e) {} }
+  if (typeof appPost === 'function') setTimeout(() => appPost({ type:'log', msg:'audio after return: ' + (actx ? actx.state : 'none') }), 500);
+});
 function updateBackSound(dt, rearMin){
   const active = (game === 'play' || game === 'demo') && st.gear === 'R' && S.backSound !== 'off';
   if (!active) { backT = 0; stopBackVoice(); return; }
