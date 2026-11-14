@@ -18,6 +18,10 @@ final class AppModel: ObservableObject {
     var sendToWeb: ((String) -> Void)?
     private var resultsLeft = 0
     private var started = false
+    private var appActive = false
+    private var webReady = false
+    /// 初回の説明（チュートリアル）を表示中か。表示中はトラッキング許可を聞かない
+    private var tutorialOpen = false
 
     init() {
         store.onChange = { [weak self] in
@@ -26,9 +30,15 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// 初回表示のあと：トラッキング許可を聞いてから広告 SDK を始める
+    /// アプリが前面に出たとき
     func start() {
-        guard !started else { return }
+        appActive = true
+        startAdsIfReady()
+    }
+
+    /// 前面に出ていて、ゲームの読み込みと初回の説明が終わったら、トラッキング許可を聞いてから広告 SDK を始める
+    private func startAdsIfReady() {
+        guard appActive, webReady, !tutorialOpen, !started else { return }
         started = true
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -45,7 +55,13 @@ final class AppModel: ObservableObject {
     func handle(_ msg: [String: Any]) {
         switch msg["type"] as? String {
         case "ready":
+            webReady = true
+            tutorialOpen = msg["tutorial"] as? Bool ?? false
             pushState()
+            startAdsIfReady()
+        case "tutorialDone":
+            tutorialOpen = false
+            startAdsIfReady()
         case "screen":
             let name = msg["name"] as? String ?? ""
             let prev = screen
