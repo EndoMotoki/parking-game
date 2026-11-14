@@ -1089,7 +1089,7 @@ function physics(dt){
     const impact = Math.abs(st.v);
     st.v = 0;
     if (!st.touching) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触 ・ 0点'); tone(90, 0.25, 0.25, 'square'); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1156,7 +1156,8 @@ function showResult(ev){
   const rows = [], tips = [];
   let score = 100;
   const add = (label, val, pen) => { rows.push([label, val, pen]); score -= pen; };
-  add('接触', `${st.hits} 回`, st.hits*15);
+  // 実際の運転ではぶつけてはいけないので、1回でも接触したら0点
+  add('接触', st.hits ? `${st.hits} 回（0点）` : '0 回', st.hits ? 100 : 0);
   if (level.type === 'parallel' || st.curbs) add('縁石接触', `${st.curbs} 回`, st.curbs*8);
   const kiri = kirikaeshi(), free = level.kiriFree || 0;
   add('切り返し', free ? `${kiri} 回（${free} 回までOK）` : `${kiri} 回`, Math.min(20, Math.max(0, kiri - free)*6));
@@ -1266,6 +1267,7 @@ $('#rMenu').addEventListener('click', openMenu);
 function updateHUD(ev, son){
   const tm = Math.floor(st.time); $('#sTime').textContent = `${Math.floor(tm/60)}:${String(tm % 60).padStart(2, '0')}`;
   $('#sHit').textContent = st.hits;
+  $('#sHit').style.color = st.hits ? '#ff6b6b' : '';
   $('#sCurb').textContent = st.curbs;
   $('#sKiri').textContent = kirikaeshi();
   const ad = ev.err / D2R;
