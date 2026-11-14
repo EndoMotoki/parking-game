@@ -23,12 +23,13 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
   font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
   font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit}
+:root{--sat:env(safe-area-inset-top,0px)}   /* 画面上の切り欠き（ノッチ・Dynamic Island）の高さ */
 #main{position:fixed;inset:0;width:100vw;height:100vh;display:block}
 
 /* ミラー類：ラベルなし、細いベゼルだけ */
 .mirror{position:fixed;border:2px solid #0b0c0e;background:#000;overflow:hidden;z-index:5;box-shadow:0 2px 10px rgba(0,0,0,.45)}
 .mirror canvas{width:100%;height:100%;display:block;transform:scaleX(-1)}
-#mRear{top:10px;left:50%;transform:translateX(-50%);width:min(420px,34vw);aspect-ratio:3.4/1;border-radius:10px}
+#mRear{top:calc(10px + var(--sat));left:50%;transform:translateX(-50%);width:min(420px,34vw);aspect-ratio:3.4/1;border-radius:10px}
 .door{top:38%;width:min(250px,22vw);aspect-ratio:1.5/1}
 #mLeft{left:12px;border-radius:10px 20px 20px 30px}
 #mRight{right:12px;border-radius:20px 10px 30px 20px}
@@ -46,7 +47,7 @@ button{font:inherit;color:inherit}
 .hud{position:fixed;z-index:6;background:var(--hud);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--muted);
   font-variant-numeric:tabular-nums}
 .hud b{color:var(--text);font-weight:600}
-#stats{top:12px;left:12px;display:flex;gap:12px;align-items:baseline}
+#stats{top:calc(12px + var(--sat));left:12px;display:flex;gap:12px;align-items:baseline}
 #sTime{color:var(--text);font-size:15px;font-weight:600}
 #stats .curbStat{display:none}
 body.parallel #stats .curbStat{display:inline}
@@ -60,7 +61,7 @@ body.parallel #stats .curbStat{display:inline}
 #wheelbox{bottom:12px;right:12px;display:flex;gap:10px;align-items:center;padding:6px 8px}
 #sonar{width:30px;height:48px;opacity:0;transition:opacity .3s}
 #sonar.on{opacity:1}
-#msg{position:fixed;left:50%;top:calc(10px + min(420px,34vw)/3.4 + 12px);transform:translateX(-50%);z-index:7;
+#msg{position:fixed;left:50%;top:calc(10px + var(--sat) + min(420px,34vw)/3.4 + 12px);transform:translateX(-50%);z-index:7;
   background:var(--hud);padding:5px 12px;border-radius:6px;font-size:13px;white-space:nowrap;transition:opacity .25s}
 #msg.ok{color:var(--ok)}
 #msg.warn{color:var(--warn)}
@@ -154,23 +155,23 @@ body.touch .keys-only{display:none}
 #tSlow.on{background:rgba(92,207,138,.75);color:#111}
 #touchTools{position:fixed;left:50%;transform:translateX(-50%);z-index:8;white-space:nowrap}
 #touchTools .tbtn{padding:6px 10px;font-size:12px;margin:0 1px}
-body.touch #touchTools{display:block;top:calc(8px + min(300px,30vw)/3.4 + 6px)}
-body.touch #mRear{top:8px;width:min(300px,30vw)}
-body.touch .door{top:8px;width:min(230px,21vw)}
+body.touch #touchTools{display:block;top:calc(8px + var(--sat) + min(300px,30vw)/3.4 + 6px)}
+body.touch #mRear{top:calc(8px + var(--sat));width:min(300px,30vw)}
+body.touch .door{top:calc(8px + var(--sat));width:min(230px,21vw)}
 body.touch #mLeft{left:calc(8px + env(safe-area-inset-left))}
 body.touch #mRight{right:calc(8px + env(safe-area-inset-right))}
-body.touch #stats{top:calc(8px + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));flex-direction:column;gap:2px}
-body.touch #gearbox{top:calc(8px + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right))}
+body.touch #stats{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));flex-direction:column;gap:2px}
+body.touch #gearbox{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right))}
 body.touch #wheelbox{display:none}
 body.touch #rearView{--bmw:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
-body.touch #msg{top:calc(8px + min(300px,30vw)/3.4 + 44px);font-size:12px}
+body.touch #msg{top:calc(8px + var(--sat) + min(300px,30vw)/3.4 + 44px);font-size:12px}
 body.touch.portrait .door{width:27vw}
 body.touch.portrait #mRear{width:36vw}
-body.touch.portrait #touchTools{white-space:normal;width:98vw;text-align:center;top:calc(8px + 18vw + 6px)}
+body.touch.portrait #touchTools{white-space:normal;width:98vw;text-align:center;top:calc(8px + var(--sat) + 18vw + 6px)}
 body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 8px;font-size:11px}
-body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + 18vw + 44px)}
-body.touch.portrait #stats{top:calc(8px + 18vw + 84px)}
-body.touch.portrait #gearbox{top:calc(8px + 18vw + 84px)}
+body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + var(--sat) + 18vw + 44px)}
+body.touch.portrait #stats{top:calc(8px + var(--sat) + 18vw + 84px)}
+body.touch.portrait #gearbox{top:calc(8px + var(--sat) + 18vw + 84px)}
 body.touch.portrait #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(38vh,160px) + 24px);transform:translateX(-50%);
   z-index:9;background:var(--hud);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
 .pad-only{display:none}
