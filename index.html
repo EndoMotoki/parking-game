@@ -109,15 +109,19 @@ details.more[open] summary::before{content:"− "}
   background:#1b1f24;color:var(--text);cursor:pointer}
 .subbtn[hidden]{display:none}
 /* メニュー：いちばん上にステージ（メインの操作）、それ以外は折りたたみと下の小さなリンク */
+#menuTabs{margin-bottom:14px}
+#menuTabs button{padding:9px 4px;font-size:14px}
+#stagePane[hidden], #freePane[hidden]{display:none}
 #stageRow{display:flex;gap:6px;align-items:stretch}
-#stageBtn{flex:1;margin-top:0}
+#stageTitle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 0;background:#0f1114;border-radius:8px}
+#stageTitle b{font-size:17px}
+#stageTitle span{font-size:13px;color:#c4cad1;margin-top:2px}
 #stagePrev, #stageNext{width:40px;border:0;border-radius:8px;background:#1f2329;color:var(--muted);font-size:12px;cursor:pointer}
 #stagePrev:disabled, #stageNext:disabled{opacity:.25;cursor:default}
 #resumeBtn{margin:0 0 8px}
-#freeBox .subbtn{margin-top:12px}
 #menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
 #menuFoot .linkbtn{margin:0}
-#stageNote{margin:6px 0 0;text-align:center;font-size:12px}
+#stageNote{margin:8px 0 0;text-align:center;font-size:12px}
 #sStage{color:var(--accent);font-weight:600}
 #sStage[hidden]{display:none}
 /* ---- はじめての人向けの説明（スワイプで進む） ---- */
@@ -362,12 +366,13 @@ body.exitTask #tDone{display:none}
     <h1>駐車練習</h1>
 
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
-    <div id="stageBox">
-      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><button class="bigbtn" id="stageBtn">ステージ 1 に挑戦</button><button id="stageNext" aria-label="次のステージ">▶</button></div>
+    <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="free">自由練習</button></div>
+    <div id="stagePane">
+      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <p id="stageNote" class="keys"></p>
+      <button class="bigbtn" id="stageBtn">スタート</button>
     </div>
-
-    <details class="more" id="freeBox"><summary>自由練習（コースを自分で選ぶ）</summary>
+    <div id="freePane" hidden>
       <div class="opt" data-key="task"><label>練習</label><div class="seg">
         <button data-v="park">入庫</button><button data-v="exit">出庫</button>
       </div></div>
@@ -387,8 +392,8 @@ body.exitTask #tDone{display:none}
         <button data-v="any">おまかせ</button><button data-v="end2">奥から2番目</button><button data-v="end">一番奥</button>
       </div></div>
       <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
-      <button class="subbtn" id="startBtn">この設定でスタート</button>
-    </details>
+      <button class="bigbtn" id="startBtn">スタート</button>
+    </div>
 
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
@@ -978,7 +983,7 @@ function handleKey(code){
     else if (code === 'Escape') closeTutorial();
     return;
   }
-  if (game === 'menu') { if (code === 'Enter') startStage(stageSel); else if (code === 'Escape') closeMenu(); return; }
+  if (game === 'menu') { if (code === 'Enter') menuStart(); else if (code === 'Escape') closeMenu(); return; }
   if (game === 'demo') {
     if (code === 'KeyR' || code === 'Enter') resetPlayer();
     else if (code === 'KeyO') startDemo();
@@ -1189,7 +1194,7 @@ function pollGamepad(dt){
   if (edge(2)) handleKey('KeyU');       // Y: ミラー調整
   if (edge(8)) handleKey('KeyR');       // −: やり直し
   if (tutorialOpen) { if (edge(15)) tutGo(tutIdx + 1, true); if (edge(14)) tutGo(tutIdx - 1); if (edge(9) || edge(0)) closeTutorial(); }
-  else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : startStage(stageSel)) : handleKey('Escape');   // +: 設定 / 開始
+  else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : menuStart()) : handleKey('Escape');   // +: 設定 / 開始
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
   if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
   if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
@@ -1562,19 +1567,31 @@ function beginPlay(){
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 }
 $('#startBtn').addEventListener('click', startGame);
-try { $('#freeBox').open = localStorage.getItem('freeOpen') === '1'; } catch(e) {}
-$('#freeBox').addEventListener('toggle', () => { try { localStorage.setItem('freeOpen', $('#freeBox').open ? '1' : '0'); } catch(e) {} });
+// メニューのタブ（ステージ／自由練習）。選んだタブは覚えておく
+let menuTab = 'stage';
+try { if (localStorage.getItem('menuTab') === 'free') menuTab = 'free'; } catch(e) {}
+function setMenuTab(t){
+  menuTab = t;
+  $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free';
+  document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  try { localStorage.setItem('menuTab', t); } catch(e) {}
+}
+document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
+setMenuTab(menuTab);
+// メニューで Enter / ＋：いま開いているタブのスタート
+const menuStart = () => menuTab === 'free' ? startGame() : startStage(stageSel);
 $('#stageBtn').addEventListener('click', () => startStage(stageSel));
 $('#stagePrev').addEventListener('click', () => { stageSel = Math.max(1, stageSel - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { stageSel = Math.min(stageUnlocked, stageSel + 1); syncStageMenu(); });
 $('#rNext').addEventListener('click', () => startStage(Math.min(STAGES.length, stageNo + 1)));
 function syncStageMenu(){
   stageSel = Math.max(1, Math.min(stageUnlocked, stageSel));
-  $('#stageBtn').textContent = `ステージ ${stageSel} / ${STAGES.length}　スタート`;
+  $('#stageNum').textContent = `ステージ ${stageSel} / ${STAGES.length}`;
+  $('#stageName').textContent = STAGES[stageSel - 1].name;
   $('#stagePrev').disabled = stageSel <= 1;
   $('#stageNext').disabled = stageSel >= stageUnlocked;
   const c = STAGES[stageSel - 1];
-  $('#stageNote').textContent = `${c.name}　${stageDesc(c)}`;
+  $('#stageNote').textContent = `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 $('#resumeBtn').addEventListener('click', closeMenu);
