@@ -191,7 +191,9 @@ body.touch #mRight{right:calc(8px + env(safe-area-inset-right))}
 body.touch #stats{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);left:calc(8px + env(safe-area-inset-left));flex-direction:column;gap:2px}
 body.touch #gearbox{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right))}
 body.touch #wheelbox{display:none}
-body.touch #rearView{--bmw:min(320px,30vw);bottom:calc(8px + env(safe-area-inset-bottom))}
+/* バックモニター・アラウンドビュー：横向きは前方の視界をふさがない大きさに、縦向きはハンドルとペダルの上に出す */
+body.touch #rearView{--bmw:min(260px,22vw,calc(30vh * 1.6));bottom:calc(8px + env(safe-area-inset-bottom))}
+body.touch.portrait #rearView{--bmw:min(300px,54vw);bottom:calc(min(38vh,160px,44vw) + 58px + env(safe-area-inset-bottom))}
 body.touch #msg{top:calc(8px + var(--sat) + min(300px,30vw)/3.4 + 44px);font-size:12px}
 body.touch.portrait .door{width:27vw}
 body.touch.portrait #mRear{width:36vw}
@@ -495,10 +497,12 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', cam:'chase',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 // 「どちらでも」を追加したとき、それまで保存されていたバック／前向きは一度だけ「どちらでも」に切り替える
+// 視点の初期値を「追従」に変えたので、それまでの「俯瞰」の保存は一度だけ「追従」に切り替える
+if (!S.chaseV) { if (S.cam === 'top') S.cam = 'chase'; S.chaseV = 1; }
 if (!S.eitherV) { if (S.mode === 'back' || S.mode === 'front') S.mode = 'either'; S.eitherV = 1; }
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
 
@@ -997,6 +1001,7 @@ document.querySelectorAll('[data-hold]').forEach(b => {
 });
 // アプリが裏に回った・メニューを開いたなどで指の情報が途切れたときは、ハンドルとペダルを放したことにする
 function releaseTouchInputs(){
+  if (typeof pinchPts !== 'undefined') pinchPts.clear();
   touchSteer.active = false; touchSteer.id = null; $('#tWheel').classList.remove('active');
   for (const k in keys) if (k[0] === 'T') keys[k] = false;
   document.querySelectorAll('[data-hold].down').forEach(b => b.classList.remove('down'));
@@ -1005,19 +1010,31 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) relea
 addEventListener('pagehide', releaseTouchInputs);
 $('#tSlow').addEventListener('click', () => { slowToggle = !slowToggle; $('#tSlow').classList.toggle('on', slowToggle); });
 document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => handleKey(b.dataset.act)));
-// 2本指ピンチでズーム
+// 2本指ピンチでズーム（画面の何もないところを2本指で触ったときだけ）
+const pinchPts = new Map();
 (function(){
-  const pts = new Map(); let base = 0, baseZoom = zoom;
+  const pts = pinchPts; let base = 0, baseZoom = zoom;
   const cv = $('#main');
   const dist = () => { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
-  cv.addEventListener('pointerdown', e => { pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); if (pts.size === 2) { base = dist(); baseZoom = zoom; } });
+  // ハンドルやペダルを操作中は、画面に触れている別の指があってもズームしない
+  const usingControls = () => touchSteer.active || Object.keys(keys).some(k => k[0] === 'T' && keys[k]);
+  cv.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse') return;
+    // 画面に触れている指がほかにない（新しいタッチの始まり）なら、残っている古い指の情報は捨てる
+    if (e.isPrimary) pts.clear();
+    pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (pts.size === 2 && !usingControls()) { base = dist(); baseZoom = zoom; } else base = 0;
+  });
   cv.addEventListener('pointermove', e => {
     if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
-    if (pts.size === 2 && base > 0) zoom = clamp(baseZoom * base / dist(), 6, 45);
+    if (pts.size === 2 && base > 0 && !usingControls()) zoom = clamp(baseZoom * base / dist(), 6, 45);
   });
+  // 「離した」は画面全体で拾う（キャンバスの外で離れたときや、通知が抜けたときに指が残り続けないように）
   const up = e => { pts.delete(e.pointerId); base = 0; };
-  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
 })();
+// iOS のページ自体の拡大縮小（ピンチ）を止める
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive:false }));
 
 // ---------------- ドアミラー調整 ----------------
 const mirrorAdj = { open:false, side:'L', hold:null };

@@ -19,6 +19,10 @@ struct GameWebView: UIViewRepresentable {
         web.scrollView.isScrollEnabled = false
         web.scrollView.bounces = false
         web.scrollView.contentInsetAdjustmentBehavior = .never
+        // ページ自体の拡大縮小はしない（ゲーム内のズームは Web 側で扱う）
+        web.scrollView.minimumZoomScale = 1
+        web.scrollView.maximumZoomScale = 1
+        web.scrollView.pinchGestureRecognizer?.isEnabled = false
         #if DEBUG
         if #available(iOS 16.4, *) { web.isInspectable = true }
         #endif
