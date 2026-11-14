@@ -123,6 +123,11 @@ details.more[open] summary::before{content:"− "}
   #result{background:linear-gradient(180deg, rgba(8,9,11,0) 35%, rgba(8,9,11,.5));align-items:flex-end;justify-content:center}
   #result .card{max-height:56vh}
 }
+#appStore{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:10px}
+#appStore[hidden],#appStore [hidden]{display:none}
+#appStore button{padding:7px 12px;border:1px solid #3a414a;border-radius:8px;background:#1b1f24;color:var(--text);font-size:13px;cursor:pointer}
+#appStore button:disabled{opacity:.5}
+#appStoreMsg{width:100%;text-align:center;font-size:12px;color:#aab1b9}
 @media (max-height:500px){ .card{padding:14px 16px} .card h1{margin-bottom:8px} .opt{margin:5px 0} .seg button{padding:5px 4px} .bigbtn{margin-top:10px;padding:9px} }
 
 /* タッチ操作 */
@@ -322,6 +327,7 @@ body.exitTask #tDone{display:none}
 
     <button class="bigbtn" id="startBtn">スタート</button>
     <p id="menuBack" class="keys" style="margin:6px 0 0;text-align:center" hidden><kbd>Esc</kbd> でメニューを閉じて続きから</p>
+    <div id="appStore" hidden><button id="buyNoAds">広告を削除</button><button id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
 
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
@@ -1726,6 +1732,26 @@ document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 resize();
 buildLevel();
 game = 'menu';
+
+// ---------------- iOS アプリ版との連携（ウェブ版では何もしない） ----------------
+const APP = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app;
+function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
+if (APP) {
+  $('#appStore').hidden = false;
+  $('#buyNoAds').addEventListener('click', () => appPost({ type:'buy' }));
+  $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
+  // アプリから購入状態が届く
+  window.appState = s => {
+    $('#buyNoAds').hidden = s.adFree;
+    $('#buyNoAds').disabled = $('#restoreBuy').disabled = s.busy;
+    $('#buyNoAds').textContent = '広告を削除' + (s.price ? `（${s.price}）` : '');
+    $('#appStoreMsg').textContent = s.busy ? '処理中…' : s.message || (s.adFree ? '広告は削除済みです' : '');
+  };
+  // 画面（menu / play / result / demo）が変わったらアプリに知らせる（広告を出す場面を決めるため）
+  let lastScreen = '';
+  setInterval(() => { if (game !== lastScreen) { lastScreen = game; appPost({ type:'screen', name: game }); } }, 200);
+  appPost({ type:'ready' });
+}
 
 if (/[?&]start\b/.test(location.search)) startGame();
 requestAnimationFrame(loop);
