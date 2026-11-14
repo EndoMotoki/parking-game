@@ -112,6 +112,10 @@ details.more[open] summary::before{content:"− "}
 #menuTabs{margin-bottom:14px}
 #menuTabs button{padding:9px 4px;font-size:14px}
 #stagePane[hidden], #freePane[hidden]{display:none}
+#stageSets{margin-bottom:10px}
+#stageSets button[data-set="hard"].on{color:#ffb07a}
+#stageBtn.locked{background:#3a2a1c;color:#ffb07a;border:1px solid #6b4a2c}
+#stageBtn:disabled{opacity:.7;cursor:default}
 #stageRow{display:flex;gap:6px;align-items:stretch}
 #stageTitle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 0;background:#0f1114;border-radius:8px}
 #stageTitle b{font-size:17px}
@@ -368,6 +372,7 @@ body.exitTask #tDone{display:none}
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="free">自由練習</button></div>
     <div id="stagePane">
+      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード</button></div>
       <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <p id="stageNote" class="keys"></p>
       <button class="bigbtn" id="stageBtn">スタート</button>
@@ -567,15 +572,39 @@ const STAGES = [
   { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end'  },
   { name:'最終：ミニバンで一番奥', task:'park', mode:'back',   crowd:'full',   car:'van', width:'narrow', slot:'end'  },
 ];
+// ハードステージ（有料オプション）：動く車・歩行者（traffic / peds）、柱（pillars）、狭い通路（aisle）
+const HARD_STAGES = [
+  { name:'通路を車が通る',         task:'park', mode:'either',   crowd:'normal', car:'std', width:'std', slot:'any', x:{ traffic:1 } },
+  { name:'歩行者に注意',           task:'park', mode:'back',     crowd:'normal', car:'std', width:'std', slot:'any', x:{ peds:2 } },
+  { name:'車と歩行者が行き交う',   task:'park', mode:'back',     crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:1, peds:1 } },
+  { name:'柱のある立体駐車場',     task:'park', mode:'back',     crowd:'normal', car:'std', width:'std', slot:'any', x:{ pillars:true, aisle:5.8 } },
+  { name:'柱と狭い通路',           task:'park', mode:'back',     crowd:'busy',   car:'std', width:'std', slot:'any', x:{ pillars:true, aisle:5.2 } },
+  { name:'交通量のある道路で縦列', task:'park', mode:'parallel', crowd:'normal', car:'std', width:'std', slot:'any', x:{ traffic:2 } },
+  { name:'交通量のある道路へ出る', task:'exit', mode:'parallel', crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:2 } },
+  { name:'混んだ通路から出庫',     task:'exit', mode:'back',     crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:1, peds:2 } },
+  { name:'ミニバンで立体駐車場',   task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std', slot:'any', x:{ pillars:true, aisle:5.5, peds:1 } },
+  { name:'最難関',                 task:'park', mode:'back',     crowd:'full',   car:'van', width:'std', slot:'any', x:{ pillars:true, aisle:5.2, traffic:1, peds:2 } },
+];
+const SETS = { normal: STAGES, hard: HARD_STAGES };
 const STAGE_KEYS = ['slot','task','mode','crowd','car','width'];
 const STAGE_CLEAR = 60;      // 60点以上（接触なし）でクリア
-let stageNo = 0, stageFree = null, stageCleared = false, menuStage = 0;
-let stageUnlocked = 1;
-try { stageUnlocked = Math.max(1, Math.min(STAGES.length, +localStorage.getItem('stageUnlocked') || 1)); } catch(e) {}
-let stageSel = stageUnlocked;
-function enterStage(n){
+let stageSet = 'normal', stageNo = 0, stageFree = null, stageCleared = false, menuStage = null;
+let hardOwned = false, hardPrice = '';      // ハードステージを買ったか（iOS アプリから届く）
+const UNLOCK_KEY = { normal:'stageUnlocked', hard:'hardUnlocked' };
+const unlocked = {}, sel = {};
+for (const k of ['normal', 'hard']) {
+  unlocked[k] = 1; try { unlocked[k] = Math.max(1, Math.min(SETS[k].length, +localStorage.getItem(UNLOCK_KEY[k]) || 1)); } catch(e) {}
+  sel[k] = unlocked[k];
+}
+let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') selSet = 'hard'; } catch(e) {}
+// iOS アプリの中で開いているか（APP より前に使えるように関数で）
+function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
+const curStage = () => stageNo ? SETS[stageSet][stageNo - 1] : null;
+const stageX = () => (curStage() && curStage().x) || {};
+const stageLabel = (set, n) => (set === 'hard' ? 'ハード ' : 'ステージ ') + n;
+function enterStage(set, n){
   if (!stageFree) stageFree = Object.fromEntries(STAGE_KEYS.map(k => [k, S[k]]));
-  stageNo = n; for (const k of STAGE_KEYS) S[k] = STAGES[n - 1][k];
+  stageSet = set; stageNo = n; for (const k of STAGE_KEYS) S[k] = SETS[set][n - 1][k];
 }
 function leaveStage(){ if (stageFree) Object.assign(S, stageFree); stageFree = null; stageNo = 0; }
 function stageDesc(c){
@@ -694,7 +723,7 @@ function clearWorld(){
   scene.remove(world);
   world.traverse(o => { if (o.geometry && !Object.values(wheelGeo).includes(o.geometry)) o.geometry.dispose(); });
   world = new THREE.Group(); scene.add(world);
-  obstacles = []; wheelBlocks = [];
+  obstacles = []; wheelBlocks = []; movers = [];
 }
 function addPlane(x, z, w, d, color, y = 0.0, m){
   const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m || mat(color));
@@ -728,12 +757,65 @@ function placeParked(x, z, h, spec){
   m.position.set(x, 0, z); m.rotation.y = h; world.add(m);
   obstacles.push(mkRect(x, z, spec.wid/2, spec.len/2, h));
 }
+// ---------------- 動く車・歩行者（ハードステージ） ----------------
+// 前がふさがっていれば止まる（プレイヤーの車や他の車・人）。ただし目の前に急に出ると止まりきれずにぶつかる
+let movers = [];
+const PED_COLORS = [0x2f5d9e, 0xc0392b, 0x27ae60, 0x8e44ad, 0xd35400, 0x34495e, 0xe0c341];
+function makePedMesh(){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.23, 1.15, 10), mat(pick(PED_COLORS))); body.position.y = 0.72;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), mat(0xe0b896)); head.position.y = 1.47;
+  g.add(body, head); return g;
+}
+function addMover(o){
+  const spec = o.kind === 'car' ? randomParkedSpec() : null;
+  const mesh = spec ? buildCarMesh(spec, pick(PARKED_COLORS), false) : makePedMesh();
+  mesh.visible = false; world.add(mesh);
+  const m = { ...o, mesh, hw: spec ? spec.wid/2 : 0.28, hl: spec ? spec.len/2 : 0.28, v: 0, x: 0, z: o.lane.z,
+              h: o.lane.dir > 0 ? Math.PI/2 : -Math.PI/2, wait: o.delay || 0, active: false, touching: false, stuck: 0, t: 0 };
+  movers.push(m); return m;
+}
+const moverRect = m => mkRect(m.x, m.z, m.hw, m.hl, m.h);
+const activeMoverRects = () => movers.filter(m => m.active).map(moverRect);
+function moverHit(){
+  st.hits++; st.freeDist = 0; st.lastHit = 'body'; st.touching = true;
+  rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square');
+}
+function stepMovers(dt){
+  if (!movers.length || !st) return;
+  const pr = playerRect(st);
+  const blockedBy = (r, self) => overlap(r, pr) || movers.some(o => o !== self && o.active && overlap(r, moverRect(o)));
+  for (const m of movers) {
+    if (!m.active) {
+      if ((m.wait -= dt) > 0) continue;
+      m.x = m.lane.dir > 0 ? m.lane.x0 : m.lane.x1;
+      if (blockedBy(mkRect(m.x, m.z, m.hw + 0.3, m.hl + 1.5, m.h), m)) { m.wait = 1; continue; }   // 出てくる場所がふさがっていたら少し待つ
+      m.active = true; m.v = m.vmax*0.8; m.stuck = 0; m.mesh.visible = true;
+    }
+    const look = m.v*m.v/(2*m.brake) + m.gap;
+    const probe = mkRect(m.x + m.lane.dir*(m.hl + look/2), m.z, m.hw + 0.15, look/2, m.h);
+    const blocked = blockedBy(probe, m);
+    m.v = blocked ? Math.max(0, m.v - m.brake*dt) : Math.min(m.vmax, m.v + m.acc*dt);
+    // 長く止められたら、別の道へ行った（いなくなる）ことにする：待ち合いで動けなくならないように
+    m.stuck = m.v < 0.05 ? m.stuck + dt : 0;
+    const nx = m.x + m.lane.dir*m.v*dt;
+    if (overlap(mkRect(nx, m.z, m.hw, m.hl, m.h), pr)) {
+      m.v = 0;
+      if (!m.touching && game === 'play') { m.touching = true; if (!st.touching) moverHit(); }
+    } else { m.touching = false; m.x = nx; }
+    const out = m.lane.dir > 0 ? m.x > m.lane.x1 : m.x < m.lane.x0;
+    if (out || m.stuck > (m.kind === 'car' ? 6 : 8)) { m.active = false; m.mesh.visible = false; m.wait = rand(m.respawn[0], m.respawn[1]); continue; }
+    m.t += m.v*dt;
+    m.mesh.position.set(m.x, m.kind === 'ped' ? Math.abs(Math.sin(m.t*5))*0.04 : 0, m.z); m.mesh.rotation.y = m.h;
+  }
+}
 const lineMat = new THREE.MeshLambertMaterial({ color:0xf2f2f2 });
 const lineY = 0.012;
 
 function buildBay(){
   const cr = CROWD[S.crowd];
-  const sw = { wide:2.8, std:2.5, narrow:2.3 }[S.width], sl = 5.0, aisle = 6.5, n = 14;
+  const X = stageX();
+  const sw = { wide:2.8, std:2.5, narrow:2.3 }[S.width], sl = 5.0, aisle = X.aisle || 6.5, n = 14;
   const x0 = -n*sw/2, backD = aisle/2 + sl;
   const endX = n*sw/2 + 9, wallZ = backD + 0.75;
   // 「一番奥」「奥から2番目」：+x 側を行き止まり（最後の枠のすぐ先に壁）にする
@@ -756,6 +838,11 @@ function buildBay(){
   for (const sx of deadEnd ? [-1] : [1, -1]) for (const sz of [1, -1]) {
     const p = addWall(sx*(n*sw/2 + 1.2), sz*(backD - 0.4), 0.5, 0.5, 2.6, 0x9aa0a6);
     const band = box(0.52, 0.3, 0.52, 0xf2c200); band.position.set(p.position.x, 0.6, p.position.z); world.add(band);
+  }
+  // 立体駐車場の柱：3台ごとの区画の境目、通路側の角に立つ
+  if (X.pillars) for (const s of [1, -1]) for (let i = 0; i <= n; i += 3) {
+    const p = addWall(x0 + i*sw, s*(aisle/2 + 0.25), 0.45, 0.45, 2.6, 0x9aa0a6);
+    const band = box(0.47, 0.3, 0.47, 0xf2c200); band.position.set(p.position.x, 0.6, p.position.z); world.add(band);
   }
   // ターゲット
   const tRow = Math.random() < 0.5 ? 1 : -1;
@@ -784,6 +871,7 @@ function buildBay(){
     let dx = rand(-1, 1)*cr.slop;
     if (neighbor && (S.crowd === 'busy' || S.crowd === 'full')) dx = Math.sign(tx - cx)*rand(0.4, 1)*cr.slop;
     dx = clamp(dx, -maxOff, maxOff);
+    if (X.pillars) dx = clamp(dx, -Math.max(0, (sw - spec.wid)/2 - 0.3), Math.max(0, (sw - spec.wid)/2 - 0.3));   // 柱に当たらないように
     h += rand(-1, 1)*cr.slop*0.12;
     const cz = s*(backD - 0.2 - spec.len/2) - s*rand(0, cr.slop*0.6);
     placeParked(cx + dx, cz, h, spec);
@@ -796,6 +884,14 @@ function buildBay(){
   }
   addBuilding(xMin - 14, rand(-5, 5), rand(8, 12), rand(14, 22));
   addBuilding(xMax + (deadEnd ? 8 : 14), rand(-5, 5), rand(8, 12), rand(14, 22));
+  // 通路を走る車（左側通行：+x 向きは手前側）と、枠の前を歩く人
+  const lx0 = xMin + 1.5, lx1 = xMax - 1.5, lane = Math.min(1.4, aisle/2 - 1.1);
+  for (let k = 0; k < (X.traffic || 0); k++) for (const dir of [1, -1])
+    addMover({ kind:'car', lane:{ z: -dir*lane, dir, x0: lx0, x1: lx1 }, vmax: 2.8, acc: 1.2, brake: 4, gap: 1.6, delay: rand(1, 9) + k*7, respawn:[3, 10] });
+  for (let k = 0; k < (X.peds || 0); k++) {
+    const dir = Math.random() < 0.5 ? 1 : -1, row = Math.random() < 0.5 ? 1 : -1;
+    addMover({ kind:'ped', lane:{ z: row*(aisle/2 - 0.45), dir, x0: lx0, x1: lx1 }, vmax: 1.1, acc: 2, brake: 6, gap: 0.5, delay: rand(0, 6) + k*4, respawn:[2, 7] });
+  }
   // 「どちらでも」は、バックでも前向きでも入れてよい（判定は anyDir で前後どちら向きも可）
   const either = S.mode === 'either', back = S.mode === 'back' || either;
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
@@ -854,6 +950,10 @@ function buildParallel(){
   // 装飾
   for (let x = -endX; x < endX; x += rand(10, 15)) { addBuilding(x, curbZ - 10, rand(8, 12), rand(8, 10)); addBuilding(x + 5, 15, rand(8, 12), rand(8, 10)); }
   for (let x = -endX + 4; x < endX; x += rand(9, 14)) { addTree(x, curbZ - 2.3); }
+  // 対向車線を走る車（ハード）
+  const X = stageX();
+  for (let k = 0; k < (X.traffic || 0); k++)
+    addMover({ kind:'car', lane:{ z: 3.5, dir: -1, x0: -endX + 4, x1: endX - 4 }, vmax: 6, acc: 2, brake: 5, gap: 2.5, delay: rand(1, 6) + k*5, respawn:[2, 8] });
   const base = { type:'parallel', target: mkRect(tx, tz, (laneEdge - curbZ)/2, Lsp/2, Math.PI/2), tx, tz, curbZ, reqH: Math.PI/2 };
   if (S.task === 'exit') {
     const cz = curbZ + 0.3 + spec.wid/2;
@@ -944,7 +1044,7 @@ function buildLevel(){
     arrow.position.set(t.x, 0.02, t.z);
     world.add(arrow);
   }
-  $('#sStage').hidden = !stageNo; $('#sStage').textContent = stageNo ? `ステージ ${stageNo}` : '';
+  $('#sStage').hidden = !stageNo; $('#sStage').textContent = stageNo ? stageLabel(stageSet, stageNo) : '';
   document.body.classList.toggle('parallel', S.mode === 'parallel');
   document.body.classList.toggle('exitTask', level.task === 'exit');
   zoom = level.task === 'exit' ? 22 : 17;   // 出庫は出口まで見えるように少し引きで開始
@@ -994,7 +1094,7 @@ function handleKey(code){
   }
   if (game === 'result') {
     if (code === 'KeyO') startDemo();
-    else if (code === 'Enter' && !$('#rNext').hidden) startStage(stageNo + 1);
+    else if (code === 'Enter' && !$('#rNext').hidden) startStage(stageSet, stageNo + 1);
     else if (code === 'Enter' || code === 'KeyR') resetPlayer();
     else if (code === 'KeyN') buildLevel();
     else if (code === 'Escape') openMenu();
@@ -1294,6 +1394,7 @@ function wheelPoints(s){
 function collides(s, m = 0){
   const pr = playerRect(s, m);
   for (const o of obstacles) if (overlap(pr, o)) return 'body';
+  for (const m of movers) if (m.active && overlap(pr, moverRect(m))) return 'body';
   for (const p of wheelPoints(s)) for (const w of wheelBlocks) if (pointIn(w.rect, p[0], p[1], 0.18)) return w.kind;
   return null;
 }
@@ -1380,7 +1481,8 @@ function sonar(){
     const lf = sgn*pr.hl, lr = lat*(pr.hw - 0.12);
     pts.push([pr.x + pr.fx*lf + pr.rx*lr, pr.z + pr.fz*lf + pr.rz*lr]);
   }
-  return pts.map(([px, pz]) => { let m = 99; for (const o of obstacles) { if (Math.hypot(o.x - px, o.z - pz) - o.r > SONAR_RANGE) continue; m = Math.min(m, pointDist(o, px, pz)); } return m; });
+  const obs = movers.length ? obstacles.concat(activeMoverRects()) : obstacles;
+  return pts.map(([px, pz]) => { let m = 99; for (const o of obs) { if (Math.hypot(o.x - px, o.z - pz) - o.r > SONAR_RANGE) continue; m = Math.min(m, pointDist(o, px, pz)); } return m; });
 }
 function sonarColor(d){ return d < 0.35 ? '#ff3b3b' : d < 0.6 ? '#ff8c1a' : d < 1.0 ? '#ffd23f' : d < SONAR_RANGE ? '#3ddc84' : 'rgba(255,255,255,.12)'; }
 (function initSonarSvg(){
@@ -1459,17 +1561,18 @@ function showResult(ev){
 function finishResult(score, rows, tips, title){
   score = Math.max(0, Math.round(score));
   stageCleared = false;
+  const list = SETS[stageSet];
   if (stageNo) {
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     if (stageCleared) {
-      title = stageNo === STAGES.length ? '全ステージクリア！' : `ステージ ${stageNo} クリア！`;
-      if (stageNo < STAGES.length && stageNo + 1 > stageUnlocked) {
-        stageUnlocked = stageNo + 1; stageSel = stageUnlocked;
-        try { localStorage.setItem('stageUnlocked', stageUnlocked); } catch(e) {}
+      title = stageNo === list.length ? (stageSet === 'hard' ? 'ハード 全ステージクリア！' : '全ステージクリア！') : `${stageLabel(stageSet, stageNo)} クリア！`;
+      if (stageNo < list.length && stageNo + 1 > unlocked[stageSet]) {
+        unlocked[stageSet] = stageNo + 1; sel[stageSet] = unlocked[stageSet];
+        try { localStorage.setItem(UNLOCK_KEY[stageSet], unlocked[stageSet]); } catch(e) {}
       }
-    } else title = `ステージ ${stageNo}：あと少し（${STAGE_CLEAR}点以上・接触なしでクリア）`;
+    } else title = `${stageLabel(stageSet, stageNo)}：あと少し（${STAGE_CLEAR}点以上・接触なしでクリア）`;
   }
-  const hasNext = stageCleared && stageNo < STAGES.length;
+  const hasNext = stageCleared && stageNo < list.length;
   $('#rNext').hidden = !hasNext;
   $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
@@ -1504,7 +1607,7 @@ let menuFrom = null, menuSnap = '';
 const layoutKey = () => ['slot','task','mode','crowd','car','width'].map(k => S[k]).join();
 function openMenu(){
   releaseTouchInputs();
-  menuStage = stageNo; leaveStage();
+  menuStage = stageNo ? { set: stageSet, n: stageNo } : null; leaveStage();
   menuFrom = game; menuSnap = layoutKey() + '|' + S.cam;
   game = 'menu';
   endDemo();
@@ -1523,8 +1626,8 @@ function closeMenu(){
   if (!menuFrom) return;
   const [lay, cam] = menuSnap.split('|');
   // コースに関わる設定を変えたときは、新しい設定で始め直す
-  if (layoutKey() !== lay) { menuStage = 0; startGame(); return; }
-  if (menuStage) { enterStage(menuStage); menuStage = 0; }
+  if (layoutKey() !== lay) { menuStage = null; startGame(); return; }
+  if (menuStage) { enterStage(menuStage.set, menuStage.n); menuStage = null; }
   if (S.cam !== cam) camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
   $('#menu').classList.add('off');
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
@@ -1557,7 +1660,10 @@ document.querySelectorAll('.opt[data-key]').forEach(o => {
 for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
 // 自由練習（メニューで選んだ設定）で始める
 function startGame(){ leaveStage(); beginPlay(); }
-function startStage(n){ enterStage(n); stageSel = n; beginPlay(); }
+function startStage(set, n){
+  if (set === 'hard' && !hardOwned) return;
+  enterStage(set, n); sel[set] = n; beginPlay();
+}
 function beginPlay(){
   ensureAudio();
   camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
@@ -1579,19 +1685,33 @@ function setMenuTab(t){
 document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
 setMenuTab(menuTab);
 // メニューで Enter / ＋：いま開いているタブのスタート
-const menuStart = () => menuTab === 'free' ? startGame() : startStage(stageSel);
-$('#stageBtn').addEventListener('click', () => startStage(stageSel));
-$('#stagePrev').addEventListener('click', () => { stageSel = Math.max(1, stageSel - 1); syncStageMenu(); });
-$('#stageNext').addEventListener('click', () => { stageSel = Math.min(stageUnlocked, stageSel + 1); syncStageMenu(); });
-$('#rNext').addEventListener('click', () => startStage(Math.min(STAGES.length, stageNo + 1)));
+const hardLocked = () => selSet === 'hard' && !hardOwned;
+const menuStart = () => menuTab === 'free' ? startGame() : !hardLocked() && startStage(selSet, sel[selSet]);
+$('#stageBtn').addEventListener('click', () => {
+  if (!hardLocked()) return startStage(selSet, sel[selSet]);
+  if (inApp()) appPost({ type:'buy', product:'hard' });   // アプリ版：ハードステージを購入
+});
+$('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
+$('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
+document.querySelectorAll('#stageSets button').forEach(b => b.addEventListener('click', () => {
+  selSet = b.dataset.set; try { localStorage.setItem('stageSet', selSet); } catch(e) {} syncStageMenu();
+}));
+$('#rNext').addEventListener('click', () => startStage(stageSet, Math.min(SETS[stageSet].length, stageNo + 1)));
 function syncStageMenu(){
-  stageSel = Math.max(1, Math.min(stageUnlocked, stageSel));
-  $('#stageNum').textContent = `ステージ ${stageSel} / ${STAGES.length}`;
-  $('#stageName').textContent = STAGES[stageSel - 1].name;
-  $('#stagePrev').disabled = stageSel <= 1;
-  $('#stageNext').disabled = stageSel >= stageUnlocked;
-  const c = STAGES[stageSel - 1];
-  $('#stageNote').textContent = `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  const list = SETS[selSet], locked = hardLocked();
+  sel[selSet] = Math.max(1, Math.min(unlocked[selSet], sel[selSet]));
+  const n = sel[selSet];
+  document.querySelectorAll('#stageSets button').forEach(b => b.classList.toggle('on', b.dataset.set === selSet));
+  $('#stageNum').textContent = `${stageLabel(selSet, n)} / ${list.length}`;
+  $('#stageName').textContent = list[n - 1].name;
+  $('#stagePrev').disabled = locked || n <= 1;
+  $('#stageNext').disabled = locked || n >= unlocked[selSet];
+  const app = inApp();
+  $('#stageBtn').textContent = !locked ? 'スタート' : app ? `ハードステージを解放${hardPrice ? `（${hardPrice}）` : ''}` : 'ハードステージはアプリ版で解放できます';
+  $('#stageBtn').disabled = locked && !app;
+  $('#stageBtn').classList.toggle('locked', locked);
+  const c = list[n - 1];
+  $('#stageNote').textContent = locked ? '動く車や歩行者、柱のある立体駐車場など、実際に近い難しい駐車場の全10ステージ' : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 $('#resumeBtn').addEventListener('click', closeMenu);
@@ -1632,7 +1752,7 @@ function updateHUD(ev, son){
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
     else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
-    else if (!st.started) showMsg((stageNo ? `ステージ${stageNo}「${STAGES[stageNo-1].name}」：` : '') + '矢印の出口まで出しましょう', '');
+    else if (!st.started) showMsg((stageNo ? `${stageLabel(stageSet, stageNo)}「${curStage().name}」：` : '') + '矢印の出口まで出しましょう', '');
     else showMsg('', '');
   }
   else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '枠に入りました。「完了」で採点' : '枠に入りました。Enter で採点', 'ok');
@@ -1640,7 +1760,7 @@ function updateHUD(ev, son){
   else if (ev.allIn && ev.flipped) showMsg('向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度のずれ ${Math.abs(ad).toFixed(0)}°`, 'warn');
   else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
-  else if (!st.started) showMsg((stageNo ? `ステージ${stageNo}「${STAGES[stageNo-1].name}」：` : '') + { back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', either:'青い枠に入れましょう（バックでも前からでもOK）', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
+  else if (!st.started) showMsg((stageNo ? `${stageLabel(stageSet, stageNo)}「${curStage().name}」：` : '') + { back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', either:'青い枠に入れましょう（バックでも前からでもOK）', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
   else showMsg('', '');
 }
 
@@ -2008,6 +2128,7 @@ function loop(t){
   const dt = Math.min(0.05, (t - last) / 1000); last = t;
   if (!level) return;
   pollGamepad(dt);
+  if (game === 'play' || game === 'demo' || game === 'menu') stepMovers(dt);
   if (game === 'play') {
     const n = Math.ceil(dt / (1/120));
     for (let i = 0; i < n; i++) physics(dt / n);
@@ -2050,6 +2171,7 @@ if (APP) {
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
   // アプリから購入状態が届く
   window.appState = s => {
+    hardOwned = !!s.hardOwned; hardPrice = s.hardPrice || ''; syncStageMenu();
     $('#buyNoAds').hidden = s.adFree;
     $('#buyNoAds').disabled = $('#restoreBuy').disabled = s.busy;
     $('#buyNoAds').textContent = '広告を削除' + (s.price ? `（${s.price}）` : '');

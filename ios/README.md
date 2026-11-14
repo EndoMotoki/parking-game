@@ -33,7 +33,9 @@
 
 1. Apple Developer Program に登録する
 2. Bundle ID（いまは `io.github.endomotoki.parkinggame`）を決めて、プロジェクトの設定と `Store.swift` の商品 ID、`Products.storekit` を合わせる
-3. App Store Connect でアプリを作り、非消耗型の課金アイテム（商品 ID：`<Bundle ID>.noads`）を登録する。有料アプリの契約・口座・税の情報も登録する
+3. App Store Connect でアプリを作り、非消耗型の課金アイテムを2つ登録する。有料アプリの契約・口座・税の情報も登録する
+   - 広告を削除：`<Bundle ID>.noads`
+   - ハードステージ：`<Bundle ID>.hardstages`（`Store.swift` の `Store.Item` と `Products.storekit` も合わせる）
 4. AdMob でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える
    - `Config/Info.plist` の `GADApplicationIdentifier`
    - `ParkingGame/AdManager.swift` の `AdUnit.banner` と `AdUnit.interstitial`
