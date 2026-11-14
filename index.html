@@ -1178,17 +1178,21 @@ function physics(dt){
   // アクセル / ブレーキ
   const maxF = slow ? 0.8 : 3.3, maxB = slow ? 0.6 : 2.0, acc = 1.5, brk = 5.5, drag = 2.6;
   const toward0 = (v, a) => Math.abs(v) <= a ? 0 : v - Math.sign(v)*a;
-  // 逆方向のキーはまずブレーキ。止まってからも少し押し続けたときだけギアを切り替える
+  // 止まっているときに押したキーは、すぐにそのギアで動き出す。
+  // 動いている最中に逆方向のキーを押したときはまずブレーキで、止まってからも少し押し続けたときだけギアを切り替える
   // （ブレーキのつもりで押したキーで、反対方向に動き出さないように）
-  const SHIFT_DELAY = 0.4;
+  const SHIFT_DELAY = 0.25;
+  if (fwd && !st.prevFwd) st.fwdFromStop = Math.abs(st.v) < 0.03;
+  if (back && !st.prevBack) st.backFromStop = Math.abs(st.v) < 0.03;
+  st.prevFwd = fwd; st.prevBack = back;
   if (brake) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
   else if (fwd) {
     if (st.v < -0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
-    else if (st.gear === 'R' && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
+    else if (st.gear === 'R' && !st.fwdFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
     else { setGear('D'); st.v = st.v > maxF ? toward0(st.v, drag*dt) : Math.min(maxF, st.v + acc*dt); }
   } else if (back) {
     if (st.v > 0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
-    else if (st.gear === 'D' && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
+    else if (st.gear === 'D' && !st.backFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
     else { setGear('R'); st.v = st.v < -maxB ? toward0(st.v, drag*dt) : Math.max(-maxB, st.v - acc*dt); }
   } else { st.v = toward0(st.v, drag*dt); st.shiftT = 0; }
   if ((fwd || back) && !st.started) st.started = true;
