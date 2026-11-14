@@ -88,6 +88,18 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 .overlay.off{display:none}
 .card{background:#16191d;border-radius:12px;padding:22px 24px;width:min(520px,100%);max-height:100%;overflow:auto;
   box-shadow:0 16px 48px rgba(0,0,0,.45)}
+/* バッジ */
+#menuHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+#menuHead h1{margin:0}
+#badgeRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badgeChip{display:flex;align-items:center;gap:4px;padding:3px 9px 3px 4px;border-radius:999px;background:#1f2329;font-size:11px;font-weight:600}
+.badgeChip svg{width:22px;height:22px}
+#resBadge{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 12px;border-radius:10px;background:linear-gradient(90deg,rgba(242,193,78,.18),rgba(242,193,78,0));animation:badgeIn .6s ease}
+#resBadge[hidden]{display:none}
+#resBadge svg{width:52px;height:52px;flex:none}
+#resBadge b{display:block;font-size:15px}
+#resBadge span{font-size:12px;color:var(--muted)}
+@keyframes badgeIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
 .card h1{margin:0 0 14px;font-size:20px;font-weight:600;letter-spacing:.02em}
 .opt{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:10px;margin:8px 0}
 .opt>label{font-size:12px;color:var(--muted)}
@@ -367,7 +379,7 @@ body.exitTask #tDone{display:none}
 
 <div class="overlay" id="menu">
   <div class="card">
-    <h1>駐車練習</h1>
+    <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div></div>
 
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="free">自由練習</button></div>
@@ -498,6 +510,7 @@ body.exitTask #tDone{display:none}
 <div class="overlay off" id="result">
   <div class="card">
     <div id="resBody">
+      <div id="resBadge" hidden></div>
       <div id="resTitle">駐車完了</div>
       <div class="rankrow"><span id="rank">S</span><span id="score">100 点</span></div>
       <table id="breakdown"></table>
@@ -599,6 +612,31 @@ for (const k of ['normal', 'hard']) {
 let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') selSet = 'hard'; } catch(e) {}
 // iOS アプリの中で開いているか（APP より前に使えるように関数で）
 function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
+// ---------------- バッジ（全ステージクリア） ----------------
+const BADGES = {
+  normal: { name:'ノーマル制覇', desc:'ノーマル全18ステージをクリア', c1:'#9fd2ff', c2:'#3c7fc0' },
+  hard:   { name:'ハード制覇',   desc:'ハード全10ステージをクリア',   c1:'#ffe08a', c2:'#c8891e' },
+};
+let badges = {}; try { badges = JSON.parse(localStorage.getItem('badges') || '{}') || {}; } catch(e) {}
+function badgeSvg(set){
+  const b = BADGES[set], id = 'bg' + set + (badgeSvg.n = (badgeSvg.n || 0) + 1);   // 同じ id が隠れた場所にあるとグラデーションが描かれないので毎回別の id
+  return `<svg viewBox="0 0 64 64"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${b.c1}"/><stop offset="1" stop-color="${b.c2}"/></linearGradient></defs>`
+    + `<path d="M20 4h10l-6 20h-10z M34 4h10l6 20h-10z" fill="#d94a4a"/>`
+    + `<circle cx="32" cy="38" r="21" fill="url(#${id})" stroke="#fff6" stroke-width="2"/>`
+    + `<circle cx="32" cy="38" r="15" fill="none" stroke="#fff8" stroke-width="1.5"/>`
+    + `<text x="32" y="45" text-anchor="middle" font-size="20" font-weight="800" fill="#fff" font-family="Helvetica, Arial, sans-serif">P</text>`
+    + (set === 'hard' ? `<path d="M32 13l2.4 4.8 5.3.8-3.8 3.7.9 5.3-4.8-2.5-4.8 2.5.9-5.3-3.8-3.7 5.3-.8z" fill="#fff" opacity=".9" transform="translate(0 -9)"/>` : '')
+    + `</svg>`;
+}
+function renderBadges(){
+  const el = document.getElementById('badgeRow'); if (!el) return;
+  el.innerHTML = ['normal', 'hard'].filter(k => badges[k]).map(k => `<span class="badgeChip" title="${BADGES[k].desc}">${badgeSvg(k)}${BADGES[k].name}</span>`).join('');
+}
+function earnBadge(set){
+  const first = !badges[set];
+  if (first) { badges[set] = new Date().toISOString().slice(0, 10); try { localStorage.setItem('badges', JSON.stringify(badges)); } catch(e) {} renderBadges(); }
+  return first;
+}
 const curStage = () => stageNo ? SETS[stageSet][stageNo - 1] : null;
 const stageX = () => (curStage() && curStage().x) || {};
 const stageLabel = (set, n) => (set === 'hard' ? 'ハード ' : 'ステージ ') + n;
@@ -1572,6 +1610,14 @@ function finishResult(score, rows, tips, title){
       }
     } else title = `${stageLabel(stageSet, stageNo)}：あと少し（${STAGE_CLEAR}点以上・接触なしでクリア）`;
   }
+  // 最後のステージをクリアしたらバッジ
+  $('#resBadge').hidden = true;
+  if (stageCleared && stageNo === list.length) {
+    const first = earnBadge(stageSet), b = BADGES[stageSet];
+    $('#resBadge').innerHTML = `${badgeSvg(stageSet)}<div><b>${first ? 'バッジ獲得！' : ''}${b.name}</b><span>${b.desc}</span></div>`;
+    $('#resBadge').hidden = false;
+    if (first) { setTimeout(() => { tone(784, 0.15, 0.08); setTimeout(() => tone(1047, 0.3, 0.08), 160); }, 450); rumble(120, 0.4); }
+  }
   const hasNext = stageCleared && stageNo < list.length;
   $('#rNext').hidden = !hasNext;
   $('#rRetry').classList.toggle('primary', !hasNext);
@@ -1714,6 +1760,7 @@ function syncStageMenu(){
   $('#stageNote').textContent = locked ? '動く車や歩行者、柱のある立体駐車場など、実際に近い難しい駐車場の全10ステージ' : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
+renderBadges();
 $('#resumeBtn').addEventListener('click', closeMenu);
 $('#rRetry').addEventListener('click', resetPlayer);
 $('#rNew').addEventListener('click', buildLevel);
