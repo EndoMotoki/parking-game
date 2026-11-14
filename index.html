@@ -19,6 +19,7 @@
   --bad: #ef5b5b;
 }
 *{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}   /* iOS が長い文章の文字を勝手に大きくしないように */
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
   font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
@@ -107,6 +108,15 @@ details.more[open] summary::before{content:"− "}
 .subbtn{display:block;width:100%;margin-top:8px;padding:9px;font-size:14px;font-weight:600;border:1px solid #3a414a;border-radius:8px;
   background:#1b1f24;color:var(--text);cursor:pointer}
 .subbtn[hidden]{display:none}
+#stageBox{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+#stageRow{display:flex;gap:6px}
+#stageRow button{border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
+#stageBtn{flex:1;padding:9px;font-size:14px}
+#stagePrev, #stageNext{width:40px;font-size:12px}
+#stageRow button:disabled{opacity:.3;cursor:default}
+#stageNote{margin:6px 0 0;text-align:center;font-size:12px}
+#sStage{color:var(--accent);font-weight:600}
+#sStage[hidden]{display:none}
 #padNote{margin:10px 0 0;text-align:center;font-size:12px}
 body.gamepad #padNote{display:none}
 /* ---- はじめての人向けの説明（スワイプで進む） ---- */
@@ -152,6 +162,7 @@ body.gamepad #padNote{display:none}
 /* 画面が低いときは点数の内訳だけスクロールして、下のボタンはいつも見えるようにする */
 #resBody{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #result .btnrow{flex:none;flex-wrap:wrap}
+#rNext{flex-basis:100%}
 @media (max-height:500px){ #result .card{padding:12px 16px} #result .rankrow{margin:2px 0 6px} #breakdown{font-size:12px} #breakdown td{padding:3px 0} #tips{margin-top:6px} #result .btnrow{margin-top:8px} }
 #result{background:linear-gradient(90deg, rgba(8,9,11,0) 40%, rgba(8,9,11,.5));justify-content:flex-end}
 @media (orientation:portrait){
@@ -263,6 +274,7 @@ body.exitTask #tDone{display:none}
 <div id="replayLabel"><span>リプレイ ×<span id="replaySpeed">3</span></span><span>走った跡：</span><i><s></s>前進</i><b><s></s>後退</b></div>
 
 <div class="hud" id="stats">
+  <span id="sStage" hidden></span>
   <span id="sTime">0.0</span>
   <span>接触 <b id="sHit">0</b></span>
   <span class="curbStat">縁石 <b id="sCurb">0</b></span>
@@ -371,6 +383,10 @@ body.exitTask #tDone{display:none}
 
     <button class="bigbtn" id="startBtn">スタート</button>
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
+    <div id="stageBox">
+      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><button id="stageBtn">ステージ 1 に挑戦</button><button id="stageNext" aria-label="次のステージ">▶</button></div>
+      <p id="stageNote" class="keys"></p>
+    </div>
     <div id="appStore" hidden><button id="buyNoAds">広告を削除</button><button id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
     <button class="linkbtn" id="tutBtn">使い方を見る</button>
     <p id="padNote" class="keys">プロコン（Switch Pro コントローラー）などのゲームパッドでも遊べます。Bluetooth でつないで、どれかボタンを押すと使えます。</p>
@@ -473,6 +489,7 @@ body.exitTask #tDone{display:none}
       <div id="tips"></div>
     </div>
     <div class="btnrow">
+      <button class="primary" id="rNext" hidden>次のステージへ</button>
       <button class="primary" id="rRetry">もう一度</button>
       <button id="rDemo">お手本</button>
       <button id="rNew">別の配置</button>
@@ -517,7 +534,51 @@ try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}
 // 一時的に初期値を「追従」にしていた版で自動で切り替わった視点は「俯瞰」に戻す
 if (S.chaseV) { if (S.cam === 'chase') S.cam = 'top'; delete S.chaseV; }
 if (!S.eitherV) { if (S.mode === 'back' || S.mode === 'front') S.mode = 'either'; S.eitherV = 1; }
-function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
+// ---------------- ステージ ----------------
+// クリアすると次のステージに進める。ステージ中はコースの設定をステージのものに置き換え、
+// 自由練習の設定（stageFree）は保存用に取っておく
+const STAGES = [
+  { name:'はじめての駐車',       task:'park', mode:'either',   crowd:'empty',  car:'std', width:'wide',   slot:'any'  },
+  { name:'バックで入れる',       task:'park', mode:'back',     crowd:'normal', car:'std', width:'std',    slot:'any'  },
+  { name:'前から入れる',         task:'park', mode:'front',    crowd:'normal', car:'std', width:'std',    slot:'any'  },
+  { name:'バックで出る',         task:'exit', mode:'back',     crowd:'normal', car:'std', width:'std',    slot:'any'  },
+  { name:'前進で出る',           task:'exit', mode:'front',    crowd:'normal', car:'std', width:'std',    slot:'any'  },
+  { name:'混んだ駐車場',         task:'park', mode:'either',   crowd:'busy',   car:'std', width:'std',    slot:'any'  },
+  { name:'はじめての縦列',       task:'park', mode:'parallel', crowd:'empty',  car:'std', width:'wide',   slot:'any'  },
+  { name:'縦列から出る',         task:'exit', mode:'parallel', crowd:'normal', car:'std', width:'std',    slot:'any'  },
+  { name:'狭い枠',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'narrow', slot:'any'  },
+  { name:'奥から2番目',          task:'park', mode:'back',     crowd:'normal', car:'std', width:'std',    slot:'end2' },
+  { name:'一番奥',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'std',    slot:'end'  },
+  { name:'混んだ路肩で縦列',     task:'park', mode:'parallel', crowd:'busy',   car:'std', width:'std',    slot:'any'  },
+  { name:'軽で満車の駐車場',     task:'park', mode:'front',    crowd:'full',   car:'kei', width:'narrow', slot:'any'  },
+  { name:'ミニバンで駐車',       task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std',    slot:'any'  },
+  { name:'ミニバンで出庫',       task:'exit', mode:'either',   crowd:'busy',   car:'van', width:'std',    slot:'any'  },
+  { name:'ミニバンで縦列',       task:'park', mode:'parallel', crowd:'normal', car:'van', width:'std',    slot:'any'  },
+  { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end'  },
+  { name:'最終：ミニバンで一番奥', task:'park', mode:'back',   crowd:'full',   car:'van', width:'narrow', slot:'end'  },
+];
+const STAGE_KEYS = ['slot','task','mode','crowd','car','width'];
+const STAGE_CLEAR = 60;      // 60点以上（接触なし）でクリア
+let stageNo = 0, stageFree = null, stageCleared = false, menuStage = 0;
+let stageUnlocked = 1;
+try { stageUnlocked = Math.max(1, Math.min(STAGES.length, +localStorage.getItem('stageUnlocked') || 1)); } catch(e) {}
+let stageSel = stageUnlocked;
+function enterStage(n){
+  if (!stageFree) stageFree = Object.fromEntries(STAGE_KEYS.map(k => [k, S[k]]));
+  stageNo = n; for (const k of STAGE_KEYS) S[k] = STAGES[n - 1][k];
+}
+function leaveStage(){ if (stageFree) Object.assign(S, stageFree); stageFree = null; stageNo = 0; }
+function stageDesc(c){
+  const ex = c.task === 'exit';
+  const mode = { back: ex ? 'バックで出る' : 'バック', front: ex ? '前進で出る' : '前向き', either:'どちらでも', parallel:'縦列' }[c.mode];
+  const slot = c.mode === 'parallel' ? '' : c.slot === 'end' ? '・一番奥' : c.slot === 'end2' ? '・奥から2番目' : '';
+  return `${ex ? '出庫' : '入庫'}・${mode}・${{ empty:'空き', normal:'普通', busy:'混雑', full:'満車' }[c.crowd]}・${{ kei:'軽', std:'普通車', van:'ミニバン' }[c.car]}・枠${{ wide:'広め', std:'標準', narrow:'狭め' }[c.width]}${slot}`;
+}
+function saveSettings(){
+  // ステージ中は、コースの設定は自由練習のものを保存する
+  const out = { ...S }; if (stageFree) Object.assign(out, stageFree);
+  try { localStorage.setItem('parkingSettings', JSON.stringify(out)); } catch(e) {}
+}
 
 // ---------------- Three.js ----------------
 const scene = new THREE.Scene();
@@ -873,6 +934,7 @@ function buildLevel(){
     arrow.position.set(t.x, 0.02, t.z);
     world.add(arrow);
   }
+  $('#sStage').hidden = !stageNo; $('#sStage').textContent = stageNo ? `ステージ ${stageNo}` : '';
   document.body.classList.toggle('parallel', S.mode === 'parallel');
   document.body.classList.toggle('exitTask', level.task === 'exit');
   zoom = level.task === 'exit' ? 22 : 17;   // 出庫は出口まで見えるように少し引きで開始
@@ -922,6 +984,7 @@ function handleKey(code){
   }
   if (game === 'result') {
     if (code === 'KeyO') startDemo();
+    else if (code === 'Enter' && !$('#rNext').hidden) startStage(stageNo + 1);
     else if (code === 'Enter' || code === 'KeyR') resetPlayer();
     else if (code === 'KeyN') buildLevel();
     else if (code === 'Escape') openMenu();
@@ -1279,7 +1342,7 @@ function physics(dt){
     const fresh = !(st.freeDist < 0.3) || hit !== st.lastHit;
     if (!st.touching && fresh && (hit === 'body' || hit === 'curb')) { st.freeDist = 0; st.lastHit = hit; }
     if (!st.touching && fresh) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触 ・ 0点'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1385,6 +1448,20 @@ function showResult(ev){
 }
 function finishResult(score, rows, tips, title){
   score = Math.max(0, Math.round(score));
+  stageCleared = false;
+  if (stageNo) {
+    stageCleared = score >= STAGE_CLEAR && st.hits === 0;
+    if (stageCleared) {
+      title = stageNo === STAGES.length ? '全ステージクリア！' : `ステージ ${stageNo} クリア！`;
+      if (stageNo < STAGES.length && stageNo + 1 > stageUnlocked) {
+        stageUnlocked = stageNo + 1; stageSel = stageUnlocked;
+        try { localStorage.setItem('stageUnlocked', stageUnlocked); } catch(e) {}
+      }
+    } else title = `ステージ ${stageNo}：あと少し（${STAGE_CLEAR}点以上・接触なしでクリア）`;
+  }
+  const hasNext = stageCleared && stageNo < STAGES.length;
+  $('#rNext').hidden = !hasNext;
+  $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
   const rank = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : 'C';
   $('#rank').textContent = rank;
@@ -1417,6 +1494,7 @@ let menuFrom = null, menuSnap = '';
 const layoutKey = () => ['slot','task','mode','crowd','car','width'].map(k => S[k]).join();
 function openMenu(){
   releaseTouchInputs();
+  menuStage = stageNo; leaveStage();
   menuFrom = game; menuSnap = layoutKey() + '|' + S.cam;
   game = 'menu';
   endDemo();
@@ -1426,7 +1504,7 @@ function openMenu(){
   $('#menu').style.pointerEvents = 'none';
   clearTimeout(openMenu.t); openMenu.t = setTimeout(() => { $('#menu').style.pointerEvents = ''; }, 450);
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
-  syncMenu();
+  syncMenu(); syncStageMenu();
   // 続きから：メニューを開く前の画面に戻る（起動直後のメニューでは出さない）
   $('#resumeBtn').hidden = !menuFrom || menuFrom === 'menu';
   $('#resumeBtn').textContent = IS_TOUCH ? '続きから' : '続きから（Esc）';
@@ -1435,7 +1513,8 @@ function closeMenu(){
   if (!menuFrom) return;
   const [lay, cam] = menuSnap.split('|');
   // コースに関わる設定を変えたときは、新しい設定で始め直す
-  if (layoutKey() !== lay) { startGame(); return; }
+  if (layoutKey() !== lay) { menuStage = 0; startGame(); return; }
+  if (menuStage) { enterStage(menuStage); menuStage = 0; }
   if (S.cam !== cam) camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
   $('#menu').classList.add('off');
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
@@ -1466,7 +1545,10 @@ document.querySelectorAll('.opt[data-key]').forEach(o => {
   o.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S[o.dataset.key] = b.dataset.v; syncMenu(); saveSettings(); }));
 });
 for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
-function startGame(){
+// 自由練習（メニューで選んだ設定）で始める
+function startGame(){ leaveStage(); beginPlay(); }
+function startStage(n){ enterStage(n); stageSel = n; beginPlay(); }
+function beginPlay(){
   ensureAudio();
   camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
   $('#menu').classList.add('off');
@@ -1475,6 +1557,19 @@ function startGame(){
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 }
 $('#startBtn').addEventListener('click', startGame);
+$('#stageBtn').addEventListener('click', () => startStage(stageSel));
+$('#stagePrev').addEventListener('click', () => { stageSel = Math.max(1, stageSel - 1); syncStageMenu(); });
+$('#stageNext').addEventListener('click', () => { stageSel = Math.min(stageUnlocked, stageSel + 1); syncStageMenu(); });
+$('#rNext').addEventListener('click', () => startStage(Math.min(STAGES.length, stageNo + 1)));
+function syncStageMenu(){
+  stageSel = Math.max(1, Math.min(stageUnlocked, stageSel));
+  $('#stageBtn').textContent = `ステージ ${stageSel} / ${STAGES.length} に挑戦`;
+  $('#stagePrev').disabled = stageSel <= 1;
+  $('#stageNext').disabled = stageSel >= stageUnlocked;
+  const c = STAGES[stageSel - 1];
+  $('#stageNote').textContent = `${c.name}：${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+}
+syncStageMenu();
 $('#resumeBtn').addEventListener('click', closeMenu);
 $('#rRetry').addEventListener('click', resetPlayer);
 $('#rNew').addEventListener('click', buildLevel);
@@ -1513,7 +1608,7 @@ function updateHUD(ev, son){
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
     else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
-    else if (!st.started) showMsg('矢印の出口まで出しましょう', '');
+    else if (!st.started) showMsg((stageNo ? `ステージ${stageNo}「${STAGES[stageNo-1].name}」：` : '') + '矢印の出口まで出しましょう', '');
     else showMsg('', '');
   }
   else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '枠に入りました。「完了」で採点' : '枠に入りました。Enter で採点', 'ok');
@@ -1521,7 +1616,7 @@ function updateHUD(ev, son){
   else if (ev.allIn && ev.flipped) showMsg('向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度のずれ ${Math.abs(ad).toFixed(0)}°`, 'warn');
   else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
-  else if (!st.started) showMsg({ back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', either:'青い枠に入れましょう（バックでも前からでもOK）', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
+  else if (!st.started) showMsg((stageNo ? `ステージ${stageNo}「${STAGES[stageNo-1].name}」：` : '') + { back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', either:'青い枠に入れましょう（バックでも前からでもOK）', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
   else showMsg('', '');
 }
 
