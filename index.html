@@ -90,6 +90,7 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 .seg button{flex:1 1 0;padding:7px 4px;border:0;border-radius:6px;background:transparent;color:#aab1b9;font-size:13px;cursor:pointer}
 .seg button:hover{color:var(--text)}
 .seg button.on{background:#2a2f36;color:var(--text);font-weight:600}
+.opt.disabled{opacity:.35;pointer-events:none}
 details.more{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 details.more summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none}
 details.more summary::before{content:"+ "}
@@ -313,6 +314,9 @@ body.exitTask #tDone{display:none}
     <div class="opt" data-key="width"><label>枠の幅</label><div class="seg">
       <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
     </div></div>
+    <div class="opt" data-key="slot" id="slotOpt"><label>空き位置</label><div class="seg">
+      <button data-v="any">おまかせ</button><button data-v="end2">奥から2番目</button><button data-v="end">一番奥</button>
+    </div></div>
     <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
 
     <button class="bigbtn" id="startBtn">スタート</button>
@@ -398,7 +402,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
@@ -549,26 +553,30 @@ function buildBay(){
   const sw = { wide:2.8, std:2.5, narrow:2.3 }[S.width], sl = 5.0, aisle = 6.5, n = 14;
   const x0 = -n*sw/2, backD = aisle/2 + sl;
   const endX = n*sw/2 + 9, wallZ = backD + 0.75;
+  // 「一番奥」「奥から2番目」：+x 側を行き止まり（最後の枠のすぐ先に壁）にする
+  const deadEnd = S.slot !== 'any';
+  const xMin = -endX, xMax = deadEnd ? n*sw/2 + 0.95 : endX, xMid = (xMin + xMax)/2, xLen = xMax - xMin;
   addPlane(0, 0, 400, 400, 0x7b8a62, -0.01);
-  addPlane(0, 0, endX*2, wallZ*2, 0x4a4d52, 0.0);
+  addPlane(xMid, 0, xLen, wallZ*2, 0x4a4d52, 0.0);
   // 区画線
   for (const s of [1, -1]) {
     for (let i = 0; i <= n; i++) addPlane(x0 + i*sw, s*(aisle/2 + sl/2), 0.12, sl, 0, lineY, lineMat);
     addPlane(0, s*backD, n*sw, 0.12, 0, lineY, lineMat);
   }
   // 通路の矢印線（中央破線）
-  for (let x = -endX + 2; x < endX - 2; x += 4) addPlane(x, 0, 2, 0.12, 0, lineY, new THREE.MeshLambertMaterial({color:0xd9c25a}));
+  for (let x = xMin + 2; x < xMax - 2; x += 4) addPlane(x, 0, 2, 0.12, 0, lineY, new THREE.MeshLambertMaterial({color:0xd9c25a}));
   // 壁
-  for (const s of [1, -1]) addWall(0, s*wallZ, endX*2 + 0.3, 0.3, 1.1, 0xb9b9b4);
-  for (const s of [1, -1]) addWall(s*endX, 0, 0.3, wallZ*2, 1.1, 0xb9b9b4);
+  for (const s of [1, -1]) addWall(xMid, s*wallZ, xLen + 0.3, 0.3, 1.1, 0xb9b9b4);
+  addWall(xMin, 0, 0.3, wallZ*2, 1.1, 0xb9b9b4);
+  addWall(xMax, 0, 0.3, wallZ*2, deadEnd ? 1.6 : 1.1, deadEnd ? 0xa7a49c : 0xb9b9b4);
   // 角の柱（目印）
-  for (const sx of [1, -1]) for (const sz of [1, -1]) {
+  for (const sx of deadEnd ? [-1] : [1, -1]) for (const sz of [1, -1]) {
     const p = addWall(sx*(n*sw/2 + 1.2), sz*(backD - 0.4), 0.5, 0.5, 2.6, 0x9aa0a6);
     const band = box(0.52, 0.3, 0.52, 0xf2c200); band.position.set(p.position.x, 0.6, p.position.z); world.add(band);
   }
   // ターゲット
   const tRow = Math.random() < 0.5 ? 1 : -1;
-  const tIdx = Math.floor(rand(4, n - 4));
+  const tIdx = S.slot === 'end' ? n - 1 : S.slot === 'end2' ? n - 2 : Math.floor(rand(4, n - 4));
   const tx = x0 + (tIdx + 0.5)*sw, tz = tRow*(aisle/2 + sl/2);
   // 輪止め
   for (const s of [1, -1]) for (let i = 0; i < n; i++) {
@@ -583,6 +591,7 @@ function buildBay(){
     if (s === tRow && i === tIdx) continue;
     const neighbor = s === tRow && Math.abs(i - tIdx) === 1;
     let p = cr.p; if (neighbor && S.crowd !== 'empty') p = Math.max(p, S.crowd === 'normal' ? 0.6 : 1);
+    if (deadEnd && s === tRow) p = 1;   // 奥の練習：同じ列は目標以外すべて埋まっている
     if (Math.random() > p) continue;
     const spec = randomParkedSpec();
     const cx = x0 + (i + 0.5)*sw;
@@ -597,12 +606,13 @@ function buildBay(){
     placeParked(cx + dx, cz, h, spec);
   }
   // 装飾
-  for (let i = 0; i < 9; i++) addTree(rand(-endX, endX), (Math.random()<0.5?1:-1)*(wallZ + rand(2.5, 5)));
-  for (let x = -endX - 10; x < endX + 10; x += rand(10, 16)) {
+  for (let i = 0; i < 9; i++) addTree(rand(xMin, xMax), (Math.random()<0.5?1:-1)*(wallZ + rand(2.5, 5)));
+  for (let x = xMin - 10; x < xMax + 10; x += rand(10, 16)) {
     addBuilding(x, wallZ + 15, rand(8, 12), rand(8, 12));
     addBuilding(x + 4, -wallZ - 15, rand(8, 12), rand(8, 12));
   }
-  for (const s of [1, -1]) addBuilding(s*(endX + 14), rand(-5, 5), rand(8, 12), rand(14, 22));
+  addBuilding(xMin - 14, rand(-5, 5), rand(8, 12), rand(14, 22));
+  addBuilding(xMax + (deadEnd ? 8 : 14), rand(-5, 5), rand(8, 12), rand(14, 22));
   const back = S.mode === 'back';
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
   const spawnX = tx - (back ? rand(7.5, 9) : rand(9, 11));
@@ -614,7 +624,7 @@ function buildBay(){
     const sZ = tRow*(backD - 0.8);             // 輪止めの位置
     const sp = CARS[S.car];
     const rz = backIn ? sZ - tRow*0.34 : sZ - tRow*0.34 - Math.cos(hPark)*sp.wb;
-    const dir = Math.random() < 0.5 ? 1 : -1;
+    const dir = deadEnd ? -1 : (Math.random() < 0.5 ? 1 : -1);
     return { ...base, task:'exit', spawn:{ x: tx, z: rz, h: hPark },
       goal: mkRect(tx + dir*10, 0, 1.5, aisle/2, 0), goalH: dir*Math.PI/2, baseline: backIn ? 0 : 1 };
   }
@@ -1192,7 +1202,12 @@ const TASK_NOTE = {
   exit:{ back:'後ろ向きに止めた車を、前進で通路へ出します。', front:'前向きに止めた車を、バックで通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
 };
 function syncMenu(){
-  $('#taskNote').textContent = TASK_NOTE[S.task][S.mode];
+  const par = S.mode === 'parallel';
+  $('#slotOpt').classList.toggle('disabled', par);
+  const slotNote = par || S.slot === 'any' ? '' :
+    S.task === 'exit' ? `行き止まりの${S.slot === 'end' ? '一番奥' : '奥から2番目'}から出します。` :
+    `行き止まりで、${S.slot === 'end' ? '一番奥' : '奥から2番目'}しか空いていません。`;
+  $('#taskNote').textContent = TASK_NOTE[S.task][S.mode] + (slotNote ? ' ' + slotNote : '');
   document.querySelectorAll('.opt[data-key]').forEach(o => {
     o.querySelectorAll('button').forEach(b => b.classList.toggle('on', S[o.dataset.key] === b.dataset.v));
   });
