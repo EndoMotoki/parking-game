@@ -85,6 +85,14 @@ final class AppModel: ObservableObject {
             #if DEBUG
             print("[web]", msg["msg"] as? String ?? "")
             #endif
+        case "haptic":
+            // 衝突したら iPhone を振動させる（車・壁は強め、縁石は軽め）
+            let strong = (msg["strong"] as? Double) ?? 1
+            if strong >= 0.8 {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            } else {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
         case "buy":
             Task { await store.buy() }
         case "restore":
