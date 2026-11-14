@@ -80,7 +80,8 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 
 /* メニュー・リザルト */
 .overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
-  background:rgba(8,9,11,.55);padding:16px}
+  background:rgba(8,9,11,.55);
+  padding:max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))}
 .overlay.off{display:none}
 .card{background:#16191d;border-radius:12px;padding:22px 24px;width:min(520px,100%);max-height:100%;overflow:auto;
   box-shadow:0 16px 48px rgba(0,0,0,.45)}
@@ -101,6 +102,11 @@ details.more[open] summary::before{content:"− "}
 .checks input{accent-color:var(--accent);width:15px;height:15px}
 .bigbtn{display:block;width:100%;margin-top:16px;padding:11px;font-size:15px;font-weight:600;border:0;border-radius:8px;
   background:var(--accent);color:#111;cursor:pointer}
+.subbtn{display:block;width:100%;margin-top:8px;padding:9px;font-size:14px;font-weight:600;border:1px solid #3a414a;border-radius:8px;
+  background:#1b1f24;color:var(--text);cursor:pointer}
+.subbtn[hidden]{display:none}
+#padNote{margin:10px 0 0;text-align:center;font-size:12px}
+body.gamepad #padNote{display:none}
 .btnrow{display:flex;gap:6px;margin-top:16px}
 .btnrow button{flex:1;padding:9px;font-size:13px;border-radius:8px;border:0;background:#2a2f36;color:var(--text);cursor:pointer}
 .btnrow button.primary{background:var(--accent);color:#111;font-weight:600}
@@ -329,8 +335,9 @@ body.exitTask #tDone{display:none}
     <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
 
     <button class="bigbtn" id="startBtn">スタート</button>
-    <p id="menuBack" class="keys" style="margin:6px 0 0;text-align:center" hidden><kbd>Esc</kbd> でメニューを閉じて続きから</p>
+    <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div id="appStore" hidden><button id="buyNoAds">広告を削除</button><button id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
+    <p id="padNote" class="keys">プロコン（Switch Pro コントローラー）などのゲームパッドでも遊べます。Bluetooth でつないで、どれかボタンを押すと使えます。</p>
 
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
@@ -1257,9 +1264,14 @@ function openMenu(){
   endDemo();
   $('#result').classList.add('off');
   $('#menu').classList.remove('off');
+  // メニューボタンをタップした指の下に設定ボタンが来るので、開いた直後のタップ（ゴーストクリック）は受け付けない
+  $('#menu').style.pointerEvents = 'none';
+  clearTimeout(openMenu.t); openMenu.t = setTimeout(() => { $('#menu').style.pointerEvents = ''; }, 450);
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
   syncMenu();
-  $('#menuBack').hidden = IS_TOUCH;
+  // 続きから：メニューを開く前の画面に戻る（起動直後のメニューでは出さない）
+  $('#resumeBtn').hidden = !menuFrom || menuFrom === 'menu';
+  $('#resumeBtn').textContent = IS_TOUCH ? '続きから' : '続きから（Esc）';
 }
 function closeMenu(){
   if (!menuFrom) return;
@@ -1305,6 +1317,7 @@ function startGame(){
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 }
 $('#startBtn').addEventListener('click', startGame);
+$('#resumeBtn').addEventListener('click', closeMenu);
 $('#rRetry').addEventListener('click', resetPlayer);
 $('#rNew').addEventListener('click', buildLevel);
 $('#rDemo').addEventListener('click', startDemo);
