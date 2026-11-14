@@ -555,7 +555,7 @@ function buildBay(){
   const endX = n*sw/2 + 9, wallZ = backD + 0.75;
   // 「一番奥」「奥から2番目」：+x 側を行き止まり（最後の枠のすぐ先に壁）にする
   const deadEnd = S.slot !== 'any';
-  const xMin = -endX, xMax = deadEnd ? n*sw/2 + 0.95 : endX, xMid = (xMin + xMax)/2, xLen = xMax - xMin;
+  const xMin = -endX, xMax = deadEnd ? n*sw/2 + 1.6 : endX, xMid = (xMin + xMax)/2, xLen = xMax - xMin;
   addPlane(0, 0, 400, 400, 0x7b8a62, -0.01);
   addPlane(xMid, 0, xLen, wallZ*2, 0x4a4d52, 0.0);
   // 区画線
@@ -616,7 +616,8 @@ function buildBay(){
   const back = S.mode === 'back';
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
   const spawnX = tx - (back ? rand(7.5, 9) : rand(9, 11));
-  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH };
+  // 一番奥・奥から2番目は通路の先に余裕がなく、車や枠幅によっては1回の切り返しが必要になるため、1回までは減点しない
+  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH, kiriFree: deadEnd ? 1 : 0 };
   if (S.task === 'exit') {
     // 出庫：自分の車が枠に止まった状態から、通路の出口（左右どちらか）まで
     // 出庫のタイプは「出るときの動き」：バック＝前向きに止めた車をバックで出す、前向き＝後ろ向きに止めた車を前進で出す
@@ -1144,12 +1145,12 @@ function showResult(ev){
   const add = (label, val, pen) => { rows.push([label, val, pen]); score -= pen; };
   add('接触', `${st.hits} 回`, st.hits*15);
   if (level.type === 'parallel' || st.curbs) add('縁石接触', `${st.curbs} 回`, st.curbs*8);
-  const kiri = kirikaeshi();
-  add('切り返し', `${kiri} 回`, Math.min(20, kiri*6));
+  const kiri = kirikaeshi(), free = level.kiriFree || 0;
+  add('切り返し', free ? `${kiri} 回（${free} 回までOK）` : `${kiri} 回`, Math.min(20, Math.max(0, kiri - free)*6));
   if (ev.exit) {
     add('所要時間', `${st.time.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, st.time - 25)*0.4)));
     if (st.hits) tips.push('ハンドルを切ると前（バック時は前の外側）が大きく振れます。隣の車との間隔をミラーで確認しましょう。');
-    else if (kiri > 1) tips.push('枠からまっすぐ十分に出てからハンドルを切ると、切り返しが減ります。');
+    else if (kiri > Math.max(1, free)) tips.push('枠からまっすぐ十分に出てからハンドルを切ると、切り返しが減ります。');
     return finishResult(score, rows, tips, '出庫完了');
   }
   const angDeg = Math.abs(ev.err)/D2R;
@@ -1173,7 +1174,7 @@ function showResult(ev){
   add('所要時間', `${tm.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, tm - 45)*0.3)));
   score = Math.max(0, Math.round(score));
   if (st.hits) tips.unshift('当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。');
-  if (kiri > 1) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
+  if (kiri > Math.max(1, free)) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
   return finishResult(score, rows, tips, '駐車完了');
 }
 function finishResult(score, rows, tips, title){
