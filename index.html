@@ -108,17 +108,18 @@ details.more[open] summary::before{content:"− "}
 .subbtn{display:block;width:100%;margin-top:8px;padding:9px;font-size:14px;font-weight:600;border:1px solid #3a414a;border-radius:8px;
   background:#1b1f24;color:var(--text);cursor:pointer}
 .subbtn[hidden]{display:none}
-#stageBox{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
-#stageRow{display:flex;gap:6px}
-#stageRow button{border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);font-weight:600;cursor:pointer}
-#stageBtn{flex:1;padding:9px;font-size:14px}
-#stagePrev, #stageNext{width:40px;font-size:12px}
-#stageRow button:disabled{opacity:.3;cursor:default}
+/* メニュー：いちばん上にステージ（メインの操作）、それ以外は折りたたみと下の小さなリンク */
+#stageRow{display:flex;gap:6px;align-items:stretch}
+#stageBtn{flex:1;margin-top:0}
+#stagePrev, #stageNext{width:40px;border:0;border-radius:8px;background:#1f2329;color:var(--muted);font-size:12px;cursor:pointer}
+#stagePrev:disabled, #stageNext:disabled{opacity:.25;cursor:default}
+#resumeBtn{margin:0 0 8px}
+#freeBox .subbtn{margin-top:12px}
+#menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
+#menuFoot .linkbtn{margin:0}
 #stageNote{margin:6px 0 0;text-align:center;font-size:12px}
 #sStage{color:var(--accent);font-weight:600}
 #sStage[hidden]{display:none}
-#padNote{margin:10px 0 0;text-align:center;font-size:12px}
-body.gamepad #padNote{display:none}
 /* ---- はじめての人向けの説明（スワイプで進む） ---- */
 #tutorial{z-index:30;background:rgba(8,9,11,.82)}
 .tut{position:relative;background:#16191d;border-radius:16px;width:min(440px,100%);max-height:100%;overflow:hidden;display:flex;flex-direction:column;touch-action:none}
@@ -169,9 +170,8 @@ body.gamepad #padNote{display:none}
   #result{background:linear-gradient(180deg, rgba(8,9,11,0) 35%, rgba(8,9,11,.5));align-items:flex-end;justify-content:center}
   #result .card{max-height:56vh}
 }
-#appStore{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin-top:10px}
+#appStore{display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:center;align-items:center}
 #appStore[hidden],#appStore [hidden]{display:none}
-#appStore button{padding:7px 12px;border:1px solid #3a414a;border-radius:8px;background:#1b1f24;color:var(--text);font-size:13px;cursor:pointer}
 #appStore button:disabled{opacity:.5}
 #appStoreMsg{width:100%;text-align:center;font-size:12px;color:#aab1b9}
 @media (max-height:500px){ .card{padding:14px 16px} .card h1{margin-bottom:8px} .opt{margin:5px 0} .seg button{padding:5px 4px} .bigbtn{margin-top:10px;padding:9px} }
@@ -361,35 +361,34 @@ body.exitTask #tDone{display:none}
   <div class="card">
     <h1>駐車練習</h1>
 
-    <div class="opt" data-key="task"><label>練習</label><div class="seg">
-      <button data-v="park">入庫</button><button data-v="exit">出庫</button>
-    </div></div>
-    <div class="opt" data-key="mode"><label>タイプ</label><div class="seg">
-      <button data-v="back">バック</button><button data-v="front">前向き</button><button data-v="either">どちらでも</button><button data-v="parallel">縦列</button>
-    </div></div>
-    <div class="opt" data-key="crowd"><label>混雑</label><div class="seg">
-      <button data-v="empty">空き</button><button data-v="normal">普通</button><button data-v="busy">混雑</button><button data-v="full">満車</button>
-    </div></div>
-    <div class="opt" data-key="car"><label>車</label><div class="seg">
-      <button data-v="kei">軽</button><button data-v="std">普通車</button><button data-v="van">ミニバン</button>
-    </div></div>
-    <div class="opt" data-key="width"><label>枠の幅</label><div class="seg">
-      <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
-    </div></div>
-    <div class="opt" data-key="slot" id="slotOpt"><label>空き位置</label><div class="seg">
-      <button data-v="any">おまかせ</button><button data-v="end2">奥から2番目</button><button data-v="end">一番奥</button>
-    </div></div>
-    <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
-
-    <button class="bigbtn" id="startBtn">スタート</button>
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div id="stageBox">
-      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><button id="stageBtn">ステージ 1 に挑戦</button><button id="stageNext" aria-label="次のステージ">▶</button></div>
+      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><button class="bigbtn" id="stageBtn">ステージ 1 に挑戦</button><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <p id="stageNote" class="keys"></p>
     </div>
-    <div id="appStore" hidden><button id="buyNoAds">広告を削除</button><button id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
-    <button class="linkbtn" id="tutBtn">使い方を見る</button>
-    <p id="padNote" class="keys">プロコン（Switch Pro コントローラー）などのゲームパッドでも遊べます。Bluetooth でつないで、どれかボタンを押すと使えます。</p>
+
+    <details class="more" id="freeBox"><summary>自由練習（コースを自分で選ぶ）</summary>
+      <div class="opt" data-key="task"><label>練習</label><div class="seg">
+        <button data-v="park">入庫</button><button data-v="exit">出庫</button>
+      </div></div>
+      <div class="opt" data-key="mode"><label>タイプ</label><div class="seg">
+        <button data-v="back">バック</button><button data-v="front">前向き</button><button data-v="either">どちらでも</button><button data-v="parallel">縦列</button>
+      </div></div>
+      <div class="opt" data-key="crowd"><label>混雑</label><div class="seg">
+        <button data-v="empty">空き</button><button data-v="normal">普通</button><button data-v="busy">混雑</button><button data-v="full">満車</button>
+      </div></div>
+      <div class="opt" data-key="car"><label>車</label><div class="seg">
+        <button data-v="kei">軽</button><button data-v="std">普通車</button><button data-v="van">ミニバン</button>
+      </div></div>
+      <div class="opt" data-key="width"><label>枠の幅</label><div class="seg">
+        <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
+      </div></div>
+      <div class="opt" data-key="slot" id="slotOpt"><label>空き位置</label><div class="seg">
+        <button data-v="any">おまかせ</button><button data-v="end2">奥から2番目</button><button data-v="end">一番奥</button>
+      </div></div>
+      <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
+      <button class="subbtn" id="startBtn">この設定でスタート</button>
+    </details>
 
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
@@ -420,6 +419,7 @@ body.exitTask #tDone{display:none}
         スマホは横向きにすると、ミラーやハンドルが大きくなって遊びやすくなります。
       </div>
       <div class="keys g">
+        プロコン（Switch Pro コントローラー）などのゲームパッドも使えます。Bluetooth でつないで、どれかボタンを押してください。<br>
         コントローラー：ZR 前進　ZL 後退　B ブレーキ　Lスティック ハンドル　L 微速<br>
         A 完了　X 視点　Y ミラー　− やり直し　+ メニュー
       </div>
@@ -427,6 +427,11 @@ body.exitTask #tDone{display:none}
         軌跡の色：<span style="color:#ffd23f">黄</span> 後ろの角　<span style="color:#ff8a2a">橙</span> 前の振り出し　<span style="color:#48d6ff">水色</span> 前の角　<span style="color:#b48cff">紫</span> 内輪差　<span style="color:#ef5b5b">赤</span> 接触しそう
       </div>
     </details>
+
+    <div id="menuFoot">
+      <button class="linkbtn" id="tutBtn">使い方</button>
+      <div id="appStore" hidden><button class="linkbtn" id="buyNoAds">広告を削除</button><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
+    </div>
   </div>
 </div>
 
@@ -973,7 +978,7 @@ function handleKey(code){
     else if (code === 'Escape') closeTutorial();
     return;
   }
-  if (game === 'menu') { if (code === 'Enter') startGame(); else if (code === 'Escape') closeMenu(); return; }
+  if (game === 'menu') { if (code === 'Enter') startStage(stageSel); else if (code === 'Escape') closeMenu(); return; }
   if (game === 'demo') {
     if (code === 'KeyR' || code === 'Enter') resetPlayer();
     else if (code === 'KeyO') startDemo();
@@ -1184,7 +1189,7 @@ function pollGamepad(dt){
   if (edge(2)) handleKey('KeyU');       // Y: ミラー調整
   if (edge(8)) handleKey('KeyR');       // −: やり直し
   if (tutorialOpen) { if (edge(15)) tutGo(tutIdx + 1, true); if (edge(14)) tutGo(tutIdx - 1); if (edge(9) || edge(0)) closeTutorial(); }
-  else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : startGame()) : handleKey('Escape');   // +: 設定 / 開始
+  else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : startStage(stageSel)) : handleKey('Escape');   // +: 設定 / 開始
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
   if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
   if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
@@ -1557,17 +1562,19 @@ function beginPlay(){
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
 }
 $('#startBtn').addEventListener('click', startGame);
+try { $('#freeBox').open = localStorage.getItem('freeOpen') === '1'; } catch(e) {}
+$('#freeBox').addEventListener('toggle', () => { try { localStorage.setItem('freeOpen', $('#freeBox').open ? '1' : '0'); } catch(e) {} });
 $('#stageBtn').addEventListener('click', () => startStage(stageSel));
 $('#stagePrev').addEventListener('click', () => { stageSel = Math.max(1, stageSel - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { stageSel = Math.min(stageUnlocked, stageSel + 1); syncStageMenu(); });
 $('#rNext').addEventListener('click', () => startStage(Math.min(STAGES.length, stageNo + 1)));
 function syncStageMenu(){
   stageSel = Math.max(1, Math.min(stageUnlocked, stageSel));
-  $('#stageBtn').textContent = `ステージ ${stageSel} / ${STAGES.length} に挑戦`;
+  $('#stageBtn').textContent = `ステージ ${stageSel} / ${STAGES.length}　スタート`;
   $('#stagePrev').disabled = stageSel <= 1;
   $('#stageNext').disabled = stageSel >= stageUnlocked;
   const c = STAGES[stageSel - 1];
-  $('#stageNote').textContent = `${c.name}：${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  $('#stageNote').textContent = `${c.name}　${stageDesc(c)}`;
 }
 syncStageMenu();
 $('#resumeBtn').addEventListener('click', closeMenu);
