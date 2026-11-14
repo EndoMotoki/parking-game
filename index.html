@@ -34,7 +34,7 @@ button{font:inherit;color:inherit}
 #mLeft{left:12px;border-radius:10px 20px 20px 30px}
 #mRight{right:12px;border-radius:20px 10px 30px 20px}
 #rearView{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;
-  opacity:0;transition:opacity .2s;pointer-events:none;--bmw:min(400px,32vw)}
+  opacity:0;transition:opacity .2s;pointer-events:none;--bmw:min(32vw,44.8vh)}   /* 高さは画面の約28%まで */
 #rearView.on{opacity:1}
 #rearView .mirror{position:relative;border-radius:6px}
 #backMon{width:var(--bmw);aspect-ratio:1.6/1}
@@ -198,8 +198,8 @@ body.touch #stats{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);left:ca
 body.touch #gearbox{top:calc(8px + var(--sat) + min(230px,21vw)/1.5 + 8px);bottom:auto;left:auto;right:calc(8px + env(safe-area-inset-right))}
 body.touch #wheelbox{display:none}
 /* バックモニター・アラウンドビュー：横向きは前方の視界をふさがない大きさに、縦向きはハンドルとペダルの上に出す */
-body.touch #rearView{--bmw:min(260px,22vw,calc(30vh * 1.6));bottom:calc(8px + env(safe-area-inset-bottom))}
-body.touch.portrait #rearView{--bmw:min(300px,54vw);bottom:calc(min(38vh,160px,44vw) + 58px + env(safe-area-inset-bottom))}
+body.touch #rearView{--bmw:min(22vw,48vh);bottom:calc(8px + env(safe-area-inset-bottom))}
+body.touch.portrait #rearView{--bmw:min(54vw,30vh);bottom:calc(min(38vh,160px,44vw) + 58px + env(safe-area-inset-bottom))}
 body.touch #msg{top:calc(8px + var(--sat) + min(300px,30vw)/3.4 + 44px);font-size:12px}
 body.touch.portrait .door{width:27vw}
 body.touch.portrait #mRear{width:36vw}
@@ -230,7 +230,7 @@ body.driver:not(.touch) #cockpit{display:block}
   font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.8)}
 #cockpitInfo.center{color:var(--ok)}
 body.driver:not(.touch) #wheelbox{display:none}
-body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(300px,24vw)}
+body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(24vw,38vh)}
 
 /* ドアミラー調整 */
 .mirror.door{cursor:pointer}
