@@ -674,7 +674,7 @@ function buildParallel(){
     return { ...base, task:'exit', spawn:{ x: tx - 0.25 - spec.cOff, z: cz, h: Math.PI/2 },
       goal: mkRect(tx + Lsp*1.8, 0, 1.5, 1.75, 0), goalH: Math.PI/2, baseline: 1 };
   }
-  return { ...base, spawn: { x: tx - Lsp*1.6 - spec.cOff, z: rand(-0.2, 0.3), h: Math.PI/2 }, baseline: 1 };
+  return { ...base, spawn: { x: tx - Lsp*1.6 - spec.cOff, z: rand(-0.2, 0.3), h: Math.PI/2 }, baseline: 2 };
 }
 
 // ---------------- 予測軌跡リボン ----------------
@@ -730,7 +730,7 @@ function staticBackGuides(g, spec){
 let st = null;   // 車両状態（x,z は後軸中心）
 function resetPlayer(){
   const sp = level.spawn;
-  st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, hits:0, curbs:0, touching:false,
+  st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, dirChanges:0, segDir:0, pendDist:0, shiftT:0, hits:0, curbs:0, touching:false,
          time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[] };
   recT = 0;
   endReplay();
@@ -1027,6 +1027,8 @@ function collides(s){
   for (const p of wheelPoints(s)) for (const w of wheelBlocks) if (pointIn(w.rect, p[0], p[1], 0.18)) return w.kind;
   return null;
 }
+// 切り返し回数：基本の動き（level.baseline 回の向き替え）を超えた「前後の往復」を1回と数える
+function kirikaeshi(){ return Math.ceil(Math.max(0, st.dirChanges - level.baseline) / 2); }
 function setGear(g){
   if (st.gear === g) return;
   if (st.gear !== 'P') st.gearChanges++;
@@ -1047,14 +1049,19 @@ function physics(dt){
   // アクセル / ブレーキ
   const maxF = slow ? 0.8 : 3.3, maxB = slow ? 0.6 : 2.0, acc = 1.5, brk = 5.5, drag = 2.6;
   const toward0 = (v, a) => Math.abs(v) <= a ? 0 : v - Math.sign(v)*a;
-  if (brake) st.v = toward0(st.v, brk*dt);
+  // 逆方向のキーはまずブレーキ。止まってからも少し押し続けたときだけギアを切り替える
+  // （ブレーキのつもりで押したキーで、反対方向に動き出さないように）
+  const SHIFT_DELAY = 0.4;
+  if (brake) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
   else if (fwd) {
-    if (st.v < -0.03) st.v = toward0(st.v, brk*dt);
+    if (st.v < -0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
+    else if (st.gear === 'R' && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
     else { setGear('D'); st.v = st.v > maxF ? toward0(st.v, drag*dt) : Math.min(maxF, st.v + acc*dt); }
   } else if (back) {
-    if (st.v > 0.03) st.v = toward0(st.v, brk*dt);
+    if (st.v > 0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
+    else if (st.gear === 'D' && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
     else { setGear('R'); st.v = st.v < -maxB ? toward0(st.v, drag*dt) : Math.max(-maxB, st.v - acc*dt); }
-  } else st.v = toward0(st.v, drag*dt);
+  } else { st.v = toward0(st.v, drag*dt); st.shiftT = 0; }
   if ((fwd || back) && !st.started) st.started = true;
   // 自転車モデル
   const n = { ...st };
@@ -1075,6 +1082,13 @@ function physics(dt){
   } else {
     st.touching = false;
     st.x = n.x; st.z = n.z; st.h = n.h;
+    // 進行方向の切り替わりを数える（0.3m 以上その向きに動いたときだけ）
+    const sg = Math.sign(st.v);
+    if (sg === st.segDir) st.pendDist = 0;
+    else {
+      st.pendDist += Math.abs(st.v) * dt;
+      if (st.pendDist >= 0.3) { if (st.segDir !== 0) st.dirChanges++; st.segDir = sg; st.pendDist = 0; }
+    }
   }
 }
 
@@ -1129,8 +1143,8 @@ function showResult(ev){
   const add = (label, val, pen) => { rows.push([label, val, pen]); score -= pen; };
   add('接触', `${st.hits} 回`, st.hits*15);
   if (level.type === 'parallel' || st.curbs) add('縁石接触', `${st.curbs} 回`, st.curbs*8);
-  const kiri = Math.max(0, st.gearChanges - level.baseline);
-  add('切り返し', `${kiri} 回`, Math.min(20, kiri*4));
+  const kiri = kirikaeshi();
+  add('切り返し', `${kiri} 回`, Math.min(20, kiri*6));
   if (ev.exit) {
     add('所要時間', `${st.time.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, st.time - 25)*0.4)));
     if (st.hits) tips.push('ハンドルを切ると前（バック時は前の外側）が大きく振れます。隣の車との間隔をミラーで確認しましょう。');
@@ -1158,7 +1172,7 @@ function showResult(ev){
   add('所要時間', `${tm.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, tm - 45)*0.3)));
   score = Math.max(0, Math.round(score));
   if (st.hits) tips.unshift('当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。');
-  if (kiri > 2) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
+  if (kiri > 1) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
   return finishResult(score, rows, tips, '駐車完了');
 }
 function finishResult(score, rows, tips, title){
@@ -1233,7 +1247,7 @@ function updateHUD(ev, son){
   const tm = Math.floor(st.time); $('#sTime').textContent = `${Math.floor(tm/60)}:${String(tm % 60).padStart(2, '0')}`;
   $('#sHit').textContent = st.hits;
   $('#sCurb').textContent = st.curbs;
-  $('#sKiri').textContent = Math.max(0, st.gearChanges - level.baseline);
+  $('#sKiri').textContent = kirikaeshi();
   const ad = ev.err / D2R;
   $('#speed').innerHTML = `${(Math.abs(st.v)*3.6).toFixed(0)}<small>km/h</small>`;
   document.querySelectorAll('.gears div').forEach(d => d.classList.toggle('on', d.dataset.g === st.gear));
