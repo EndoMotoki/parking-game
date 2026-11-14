@@ -304,7 +304,7 @@ body.exitTask #tDone{display:none}
       <button data-v="park">入庫</button><button data-v="exit">出庫</button>
     </div></div>
     <div class="opt" data-key="mode"><label>タイプ</label><div class="seg">
-      <button data-v="back">バック</button><button data-v="front">前向き</button><button data-v="parallel">縦列</button>
+      <button data-v="back">バック</button><button data-v="front">前向き</button><button data-v="either">どちらでも</button><button data-v="parallel">縦列</button>
     </div></div>
     <div class="opt" data-key="crowd"><label>混雑</label><div class="seg">
       <button data-v="empty">空き</button><button data-v="normal">普通</button><button data-v="busy">混雑</button><button data-v="full">満車</button>
@@ -404,9 +404,11 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'back', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
+// 「どちらでも」を追加したとき、それまで保存されていたバック／前向きは一度だけ「どちらでも」に切り替える
+if (!S.eitherV) { if (S.mode === 'back' || S.mode === 'front') S.mode = 'either'; S.eitherV = 1; }
 function saveSettings(){ try { localStorage.setItem('parkingSettings', JSON.stringify(S)); } catch(e) {} }
 
 // ---------------- Three.js ----------------
@@ -615,24 +617,25 @@ function buildBay(){
   }
   addBuilding(xMin - 14, rand(-5, 5), rand(8, 12), rand(14, 22));
   addBuilding(xMax + (deadEnd ? 8 : 14), rand(-5, 5), rand(8, 12), rand(14, 22));
-  const back = S.mode === 'back';
+  // 「どちらでも」は、バックでも前向きでも入れてよい（判定は anyDir で前後どちら向きも可）
+  const either = S.mode === 'either', back = S.mode === 'back' || either;
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
-  const spawnX = tx - (back ? rand(7.5, 9) : rand(9, 11));
+  const spawnX = tx - (either ? rand(8, 10) : back ? rand(7.5, 9) : rand(9, 11));
   // 一番奥・奥から2番目は通路の先に余裕がなく、車や枠幅によっては1回の切り返しが必要になるため、1回までは減点しない
-  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH, kiriFree: deadEnd ? 1 : 0 };
+  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH, anyDir: either, kiriFree: deadEnd ? 1 : 0 };
   if (S.task === 'exit') {
     // 出庫：自分の車が枠に止まった状態から、通路の出口（左右どちらか）まで
     // 出庫のタイプは「出るときの動き」：バック＝前向きに止めた車をバックで出す、前向き＝後ろ向きに止めた車を前進で出す
-    const backIn = S.mode === 'front';        // 後ろ向きに止めてある（前進で出る）
+    const backIn = either ? Math.random() < 0.5 : S.mode === 'front';   // 後ろ向きに止めてある（前進で出る）。「どちらでも」はランダム
     const hPark = backIn ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
     const sZ = tRow*(backD - 0.8);             // 輪止めの位置
     const sp = CARS[S.car];
     const rz = backIn ? sZ - tRow*0.34 : sZ - tRow*0.34 - Math.cos(hPark)*sp.wb;
     const dir = deadEnd ? -1 : (Math.random() < 0.5 ? 1 : -1);
     return { ...base, task:'exit', spawn:{ x: tx, z: rz, h: hPark },
-      goal: mkRect(tx + dir*10, 0, 1.5, aisle/2, 0), goalH: dir*Math.PI/2, baseline: backIn ? 0 : 1 };
+      goal: mkRect(tx + dir*10, 0, 1.5, aisle/2, 0), goalH: dir*Math.PI/2, exitFwd: backIn, baseline: backIn ? 0 : 1 };
   }
-  return { ...base, spawn: { x: spawnX - CARS[S.car].cOff, z: rand(-0.4, 0.4), h: Math.PI/2 }, baseline: back ? 1 : 0 };
+  return { ...base, spawn: { x: spawnX - CARS[S.car].cOff, z: rand(-0.4, 0.4), h: Math.PI/2 }, baseline: back ? 1 : 0 };   // 「どちらでも」も 1：前進で始めて前向きで入れる 0 回・2 回は、ceil で同じ切り返し回数になる
 }
 
 function buildParallel(){
@@ -1136,7 +1139,8 @@ function evaluate(){
   }
   const pr = playerRect(st), t = level.target;
   const allIn = corners(pr).every(([x, z]) => pointIn(t, x, z, 0.03));
-  const err = wrapAng(st.h - level.reqH);
+  let err = wrapAng(st.h - level.reqH);
+  if (level.anyDir && Math.abs(err) > Math.PI/2) err = wrapAng(err + Math.PI);
   const flipped = Math.abs(err) > Math.PI/2;
   return { allIn, err, flipped, ready: allIn && Math.abs(err) < 8*D2R && !flipped, pr };
 }
@@ -1229,8 +1233,8 @@ function openMenu(){
   syncMenu();
 }
 const TASK_NOTE = {
-  park:{ back:'通路から、青い枠にバックで入れます。', front:'通路から、青い枠に前から入れます。', parallel:'路肩の前後の車の間に入れます。' },
-  exit:{ back:'前向きに止めた車を、バックで通路へ出します。', front:'後ろ向きに止めた車を、前進で通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
+  park:{ back:'通路から、青い枠にバックで入れます。', front:'通路から、青い枠に前から入れます。', either:'通路から、青い枠にバックでも前からでも好きな方で入れます。', parallel:'路肩の前後の車の間に入れます。' },
+  exit:{ back:'前向きに止めた車を、バックで通路へ出します。', front:'後ろ向きに止めた車を、前進で通路へ出します。', either:'前向きか後ろ向き（毎回ランダム）に止めた車を、通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
 };
 function syncMenu(){
   const par = S.mode === 'parallel', ex = S.task === 'exit';
@@ -1304,7 +1308,7 @@ function updateHUD(ev, son){
   else if (ev.allIn && ev.flipped) showMsg('向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度のずれ ${Math.abs(ad).toFixed(0)}°`, 'warn');
   else if (predHit) showMsg(`${predHit.side}${predHit.part}が当たりそうです（${predHit.dist.toFixed(1)}m）`, 'warn');
-  else if (!st.started) showMsg({ back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
+  else if (!st.started) showMsg({ back:'青い枠にバックで入れましょう', front:'青い枠に前から入れましょう', either:'青い枠に入れましょう（バックでも前からでもOK）', parallel:'青い枠に縦列で入れましょう' }[S.mode], '');
   else showMsg('', '');
 }
 
@@ -1365,13 +1369,13 @@ function endReplay(){
 // ---------------- お手本（自動運転） ----------------
 // ゲームと同じ車の動き・当たり判定で、向きの切り替え（前進⇄後退）が最も少ない経路を探す。
 // 同じ回数なら、走る距離とハンドルの持ち替えが少ない経路を選ぶ。
-function idealPose(){
-  // 理想の駐車位置（後軸中心）
+function idealPose(front = S.mode === 'front'){
+  // 理想の駐車位置（後軸中心）。front：前向きに入れたとき
   if (level.type === 'bay') {
-    const sZ = level.backZ - level.tRow*0.8, h = level.reqH;
-    return { x: level.tx, z: S.mode === 'back' ? sZ - level.tRow*0.34 : sZ - level.tRow*0.34 - Math.cos(h)*C.wb, h };
+    const sZ = level.backZ - level.tRow*0.8, h = front === (S.mode === 'front') ? level.reqH : wrapAng(level.reqH + Math.PI);
+    return { x: level.tx, z: !front ? sZ - level.tRow*0.34 : sZ - level.tRow*0.34 - Math.cos(h)*C.wb, h, d: front ? 1 : -1 };
   }
-  return { x: level.target.x - C.cOff, z: level.curbZ + 0.3 + C.wid/2, h: level.reqH };
+  return { x: level.target.x - C.cOff, z: level.curbZ + 0.3 + C.wid/2, h: level.reqH, d: -1 };
 }
 function planDemo(){
   // まず周りと 3cm の余裕を取って探し、だめなら余裕なしで
@@ -1393,10 +1397,11 @@ function planDemoM(MARGIN){
     let ih = Math.round(h/A) % NH; if (ih < 0) ih += NH;
     return ((ix*NZ + iz)*NH + ih)*2 + (dir > 0 ? 0 : 1);
   };
-  const ideal = exit ? null : idealPose();
-  const strict = (x, z, h) => {
+  // 「どちらでも」はバック・前向きの両方を目標にして、切り返しの少ない方を選ぶ
+  const ideals = exit ? [] : level.anyDir ? [idealPose(false), idealPose(true)] : [idealPose()];
+  const strict = (x, z, h, d) => {
     if (exit) return pointIn(level.goal, x + Math.sin(h)*C.cOff, z + Math.cos(h)*C.cOff) && Math.abs(wrapAng(h - level.goalH)) < 6*D2R;
-    return Math.hypot(x - ideal.x, z - ideal.z) < 0.22 && Math.abs(wrapAng(h - ideal.h)) < 3*D2R;
+    return ideals.some(I => I.d === d && Math.hypot(x - I.x, z - I.z) < 0.22 && Math.abs(wrapAng(h - I.h)) < 3*D2R);
   };
   const loose = (x, z, h) => {
     const sv = [st.x, st.z, st.h]; st.x = x; st.z = z; st.h = h;
@@ -1425,20 +1430,21 @@ function planDemoM(MARGIN){
   const SW = 20, LV = [-2, -1, 0, 1, 2];
   const gc = exit ? [level.goal.x, level.goal.z, Math.max(level.goal.hw, level.goal.hl)] : null;
   const hEst = exit ? (x, z, h) => Math.max(0, Math.hypot(x + Math.sin(h)*C.cOff - gc[0], z + Math.cos(h)*C.cOff - gc[1]) - gc[2])
-                    : (x, z) => Math.hypot(x - ideal.x, z - ideal.z);
+                    : (x, z) => Math.min(...ideals.map(I => Math.hypot(x - I.x, z - I.z)));
   // 教科書どおりの動き：最初と最後の向きを決めておく
   //   入庫：前進で始める。バック／縦列はバックで、前向きは前進で枠に入れて終わる
   //   出庫：前向きに止めた車はバックで、後ろ向きに止めた車は前進で動き出し、最後は前進で出口へ
-  const firstDirs = !exit ? [1] : level.type === 'bay' ? [S.mode === 'front' ? 1 : -1] : [1, -1];
-  const lastDir = exit ? 1 : S.mode === 'front' ? 1 : -1;
+  //   どちらでも：前進で始め、バックで入れて終わるか前進で入れて終わる
+  const firstDirs = !exit ? [1] : level.type === 'bay' ? [level.exitFwd ? 1 : -1] : [1, -1];
+  const lastOk = d => exit ? d === 1 : level.anyDir ? true : d === (S.mode === 'front' ? 1 : -1);
   for (const d of firstDirs) push(hEst(s0.x, s0.z, s0.h), add(s0.x, s0.z, s0.h, d, 0, -1, 0));
   let found = -1, fallback = -1, pops = 0;
   while (heapC.length && pops < 1500000) {
     const f = heapC[0], n = pop(), c = NC[n]; pops++;
     const x = NXs[n], z = NZs[n], h = NHs[n], d = ND[n];
     const kk = key(x, z, h, d); if (kk < 0 || best[kk] < c - 1e-3) continue;
-    if (n > 1 && d === lastDir) {
-      if (strict(x, z, h) && loose(x, z, h)) { found = n; break; }
+    if (n > 1 && lastOk(d)) {
+      if (strict(x, z, h, d) && loose(x, z, h)) { found = n; break; }
       if (fallback < 0 && loose(x, z, h)) fallback = n;
     }
     if (fallback >= 0 && f > NC[fallback] + SW) break;   // 同じ切り返し回数でぴったり止まれないときは「枠に入った」で妥協
