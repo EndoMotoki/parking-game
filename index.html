@@ -619,7 +619,8 @@ function buildBay(){
   const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH };
   if (S.task === 'exit') {
     // 出庫：自分の車が枠に止まった状態から、通路の出口（左右どちらか）まで
-    const backIn = S.mode !== 'front';        // バック＝後ろ向きに止めてある（前進で出る）
+    // 出庫のタイプは「出るときの動き」：バック＝前向きに止めた車をバックで出す、前向き＝後ろ向きに止めた車を前進で出す
+    const backIn = S.mode === 'front';        // 後ろ向きに止めてある（前進で出る）
     const hPark = backIn ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
     const sZ = tRow*(backD - 0.8);             // 輪止めの位置
     const sp = CARS[S.car];
@@ -1213,10 +1214,13 @@ function openMenu(){
 }
 const TASK_NOTE = {
   park:{ back:'通路から、青い枠にバックで入れます。', front:'通路から、青い枠に前から入れます。', parallel:'路肩の前後の車の間に入れます。' },
-  exit:{ back:'後ろ向きに止めた車を、前進で通路へ出します。', front:'前向きに止めた車を、バックで通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
+  exit:{ back:'前向きに止めた車を、バックで通路へ出します。', front:'後ろ向きに止めた車を、前進で通路へ出します。', parallel:'縦列で止めた車を、前後の車に当てずに出します。' },
 };
 function syncMenu(){
-  const par = S.mode === 'parallel';
+  const par = S.mode === 'parallel', ex = S.task === 'exit';
+  const mb = document.querySelectorAll('.opt[data-key="mode"] button');
+  mb[0].textContent = ex ? 'バックで出る' : 'バック';
+  mb[1].textContent = ex ? '前進で出る' : '前向き';
   $('#slotOpt').classList.toggle('disabled', par);
   const slotNote = par || S.slot === 'any' ? '' :
     S.task === 'exit' ? `行き止まりの${S.slot === 'end' ? '一番奥' : '奥から2番目'}から出します。` :
