@@ -9,10 +9,13 @@ struct ContentView: View {
             GameWebView()
                 .ignoresSafeArea(edges: model.showBanner ? [.top, .horizontal] : .all)
             if model.showBanner {
-                BannerAdView()
-                    .frame(width: 320, height: 50)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.black)
+                // 広告の準備ができる前から場所だけ空けておく（あとからバナーが出て画面がずれ、ボタンを押し間違えないように）
+                Group {
+                    if model.adsStarted { BannerAdView() } else { Color.black }
+                }
+                .frame(width: 320, height: 50)
+                .frame(maxWidth: .infinity)
+                .background(Color.black)
             }
         }
         .background(Color.black.ignoresSafeArea())

@@ -12,7 +12,7 @@ final class AppModel: ObservableObject {
     /// 広告 SDK を始めたか（トラッキング許可を聞き終えてから）
     @Published private(set) var adsStarted = false
     /// 下のバナー広告を出すか
-    var showBanner: Bool { adsStarted && !store.adFree && (screen == "menu" || screen == "result") }
+    var showBanner: Bool { !tutorialOpen && !store.adFree && (screen == "menu" || screen == "result") }
 
     /// Web 側へ状態を送る関数（GameWebView が設定する）
     var sendToWeb: ((String) -> Void)?
@@ -20,8 +20,8 @@ final class AppModel: ObservableObject {
     private var started = false
     private var appActive = false
     private var webReady = false
-    /// 初回の説明（チュートリアル）を表示中か。表示中はトラッキング許可を聞かない
-    private var tutorialOpen = false
+    /// 初回の説明（チュートリアル）を表示中か。表示中はトラッキング許可を聞かず、バナーの場所も空けない
+    @Published private var tutorialOpen = true
 
     init() {
         store.onChange = { [weak self] in
