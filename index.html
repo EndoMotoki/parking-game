@@ -208,6 +208,11 @@ body.touch.portrait #touchTools .tbtn{margin:2px 1px;padding:5px 8px;font-size:1
 body.touch.portrait #msg{white-space:normal;width:94vw;text-align:center;top:calc(8px + var(--sat) + 18vw + 44px)}
 body.touch.portrait #stats{top:calc(8px + var(--sat) + 18vw + 84px)}
 body.touch.portrait #gearbox{top:calc(8px + var(--sat) + 18vw + 84px)}
+/* iPad の画面分割など幅がとても狭いときは、ボタン列が2段になるので下の表示をその分下げる */
+@media (max-width:360px){
+  body.touch.portrait #msg{top:calc(8px + var(--sat) + 18vw + 74px)}
+  body.touch.portrait #stats, body.touch.portrait #gearbox{top:calc(8px + var(--sat) + 18vw + 114px)}
+}
 body.touch.portrait.rotateHintOn #rotateHint{display:block;position:fixed;left:50%;bottom:calc(min(38vh,160px) + 24px);transform:translateX(-50%);
   z-index:9;background:var(--hud);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--muted);white-space:nowrap;
   transition:opacity .6s;pointer-events:auto}
