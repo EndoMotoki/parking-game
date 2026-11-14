@@ -75,7 +75,11 @@ final class AppModel: ObservableObject {
             #endif
             if prev == "result" && name != "result" && name != "menu" {
                 resultsLeft += 1
-                if resultsLeft >= 3, !store.adFree, ads.showInterstitial() { resultsLeft = 0 }
+                if resultsLeft >= 3, !store.adFree, ads.showInterstitial() {
+                    resultsLeft = 0
+                    // 全画面広告が指の操作に割り込むので、ハンドル・ペダルを放したことにする
+                    sendToWeb?("window.releaseTouchInputs && releaseTouchInputs()")
+                }
             }
         case "buy":
             Task { await store.buy() }
