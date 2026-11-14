@@ -291,6 +291,7 @@ body.exitTask #tDone{display:none}
   <button class="tbtn" data-act="Enter" id="tDone">完了</button>
   <button class="tbtn" data-act="KeyR">やり直し</button>
   <button class="tbtn" data-act="KeyU">ミラー</button>
+  <button class="tbtn" data-act="KeyO">お手本</button>
   <button class="tbtn" data-act="Escape">メニュー</button>
 </div>
 <div id="rotateHint">横向きのほうが遊びやすいです</div>
@@ -342,7 +343,7 @@ body.exitTask #tDone{display:none}
       <div class="keys keys-only">
         <kbd>W</kbd> 前進　<kbd>S</kbd> 後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ　<kbd>Shift</kbd> 微速<br>
         <kbd>C</kbd> 視点　<kbd>Q</kbd><kbd>E</kbd><kbd>V</kbd> 左右・後方を見る　<kbd>U</kbd> ミラー調整<br>
-        <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>N</kbd> 別の配置　<kbd>Esc</kbd> メニュー<br>
+        <kbd>Enter</kbd> 駐車完了　<kbd>R</kbd> やり直し　<kbd>O</kbd> お手本　<kbd>N</kbd> 別の配置　<kbd>Esc</kbd> メニュー<br>
         <kbd>G</kbd> 軌跡　<kbd>H</kbd> ミラー表示　<kbd>M</kbd> センサー音　<kbd>B</kbd> バック音
       </div>
       <div class="keys touch-only">
@@ -367,6 +368,7 @@ body.exitTask #tDone{display:none}
     <div id="tips"></div>
     <div class="btnrow">
       <button class="primary" id="rRetry">もう一度</button>
+      <button id="rDemo">お手本</button>
       <button id="rNew">別の配置</button>
       <button id="rMenu">メニュー</button>
     </div>
@@ -555,7 +557,7 @@ function buildBay(){
   const endX = n*sw/2 + 9, wallZ = backD + 0.75;
   // 「一番奥」「奥から2番目」：+x 側を行き止まり（最後の枠のすぐ先に壁）にする
   const deadEnd = S.slot !== 'any';
-  const xMin = -endX, xMax = deadEnd ? n*sw/2 + 0.95 : endX, xMid = (xMin + xMax)/2, xLen = xMax - xMin;
+  const xMin = -endX, xMax = deadEnd ? n*sw/2 + 1.6 : endX, xMid = (xMin + xMax)/2, xLen = xMax - xMin;
   addPlane(0, 0, 400, 400, 0x7b8a62, -0.01);
   addPlane(xMid, 0, xLen, wallZ*2, 0x4a4d52, 0.0);
   // 区画線
@@ -616,7 +618,8 @@ function buildBay(){
   const back = S.mode === 'back';
   const reqH = back ? (tRow > 0 ? Math.PI : 0) : (tRow > 0 ? 0 : Math.PI);
   const spawnX = tx - (back ? rand(7.5, 9) : rand(9, 11));
-  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH };
+  // 一番奥・奥から2番目は通路の先に余裕がなく、車や枠幅によっては1回の切り返しが必要になるため、1回までは減点しない
+  const base = { type:'bay', target: mkRect(tx, tz, sw/2, sl/2, 0), tx, tz, tRow, backZ: tRow*backD, reqH, kiriFree: deadEnd ? 1 : 0 };
   if (S.task === 'exit') {
     // 出庫：自分の車が枠に止まった状態から、通路の出口（左右どちらか）まで
     // 出庫のタイプは「出るときの動き」：バック＝前向きに止めた車をバックで出す、前向き＝後ろ向きに止めた車を前進で出す
@@ -735,6 +738,7 @@ function resetPlayer(){
          time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[] };
   recT = 0;
   endReplay();
+  endDemo();
   game = 'play';
   $('#result').classList.add('off');
   showMsg('', '');
@@ -791,8 +795,17 @@ addEventListener('keydown', e => {
 });
 function handleKey(code){
   if (game === 'menu') { if (code === 'Enter') startGame(); return; }
+  if (game === 'demo') {
+    if (code === 'KeyR' || code === 'Enter') resetPlayer();
+    else if (code === 'KeyO') startDemo();
+    else if (code === 'KeyC') camIdx = (camIdx + 1) % CAM_MODES.length;
+    else if (code === 'KeyN') buildLevel();
+    else if (code === 'Escape') openMenu();
+    return;
+  }
   if (game === 'result') {
-    if (code === 'Enter' || code === 'KeyR') resetPlayer();
+    if (code === 'KeyO') startDemo();
+    else if (code === 'Enter' || code === 'KeyR') resetPlayer();
     else if (code === 'KeyN') buildLevel();
     else if (code === 'Escape') openMenu();
     return;
@@ -800,6 +813,7 @@ function handleKey(code){
   switch (code) {
     case 'KeyC': camIdx = (camIdx + 1) % CAM_MODES.length; break;
     case 'KeyR': resetPlayer(); break;
+    case 'KeyO': startDemo(); break;
     case 'KeyN': buildLevel(); break;
     case 'Escape': openMenu(); break;
     case 'Enter': tryFinish(); break;
@@ -992,7 +1006,7 @@ function speakBack(){
 }
 function stopBackVoice(){ if (backSpeaking && 'speechSynthesis' in window) speechSynthesis.cancel(); backSpeaking = false; }
 function updateBackSound(dt, rearMin){
-  const active = game === 'play' && st.gear === 'R' && S.backSound !== 'off';
+  const active = (game === 'play' || game === 'demo') && st.gear === 'R' && S.backSound !== 'off';
   if (!active) { backT = 0; stopBackVoice(); return; }
   backT -= dt;
   if (S.backSound === 'beep') {
@@ -1012,9 +1026,9 @@ function tone(freq, dur, vol = 0.07, type = 'sine'){
 }
 
 // ---------------- 物理 ----------------
-function playerRect(s){
+function playerRect(s, m = 0){
   const fx = Math.sin(s.h), fz = Math.cos(s.h);
-  return mkRect(s.x + fx*C.cOff, s.z + fz*C.cOff, C.wid/2, C.len/2, s.h);
+  return mkRect(s.x + fx*C.cOff, s.z + fz*C.cOff, C.wid/2 + m, C.len/2 + m, s.h);
 }
 function wheelPoints(s){
   const fx = Math.sin(s.h), fz = Math.cos(s.h), rx = Math.cos(s.h), rz = -Math.sin(s.h), w = C.wid/2 - 0.13;
@@ -1022,8 +1036,8 @@ function wheelPoints(s){
   for (const a of [0, C.wb]) for (const b of [-w, w]) pts.push([s.x + fx*a + rx*b, s.z + fz*a + rz*b]);
   return pts;
 }
-function collides(s){
-  const pr = playerRect(s);
+function collides(s, m = 0){
+  const pr = playerRect(s, m);
   for (const o of obstacles) if (overlap(pr, o)) return 'body';
   for (const p of wheelPoints(s)) for (const w of wheelBlocks) if (pointIn(w.rect, p[0], p[1], 0.18)) return w.kind;
   return null;
@@ -1075,7 +1089,7 @@ function physics(dt){
     const impact = Math.abs(st.v);
     st.v = 0;
     if (!st.touching) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触 ・ 0点'); tone(90, 0.25, 0.25, 'square'); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1142,14 +1156,15 @@ function showResult(ev){
   const rows = [], tips = [];
   let score = 100;
   const add = (label, val, pen) => { rows.push([label, val, pen]); score -= pen; };
-  add('接触', `${st.hits} 回`, st.hits*15);
+  // 実際の運転ではぶつけてはいけないので、1回でも接触したら0点
+  add('接触', st.hits ? `${st.hits} 回（0点）` : '0 回', st.hits ? 100 : 0);
   if (level.type === 'parallel' || st.curbs) add('縁石接触', `${st.curbs} 回`, st.curbs*8);
-  const kiri = kirikaeshi();
-  add('切り返し', `${kiri} 回`, Math.min(20, kiri*6));
+  const kiri = kirikaeshi(), free = level.kiriFree || 0;
+  add('切り返し', free ? `${kiri} 回（${free} 回までOK）` : `${kiri} 回`, Math.min(20, Math.max(0, kiri - free)*6));
   if (ev.exit) {
     add('所要時間', `${st.time.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, st.time - 25)*0.4)));
     if (st.hits) tips.push('ハンドルを切ると前（バック時は前の外側）が大きく振れます。隣の車との間隔をミラーで確認しましょう。');
-    else if (kiri > 1) tips.push('枠からまっすぐ十分に出てからハンドルを切ると、切り返しが減ります。');
+    else if (kiri > Math.max(1, free)) tips.push('枠からまっすぐ十分に出てからハンドルを切ると、切り返しが減ります。');
     return finishResult(score, rows, tips, '出庫完了');
   }
   const angDeg = Math.abs(ev.err)/D2R;
@@ -1173,7 +1188,7 @@ function showResult(ev){
   add('所要時間', `${tm.toFixed(1)} 秒`, Math.round(Math.min(20, Math.max(0, tm - 45)*0.3)));
   score = Math.max(0, Math.round(score));
   if (st.hits) tips.unshift('当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。');
-  if (kiri > 1) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
+  if (kiri > Math.max(1, free)) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
   return finishResult(score, rows, tips, '駐車完了');
 }
 function finishResult(score, rows, tips, title){
@@ -1207,6 +1222,7 @@ function flashHit(text){
 }
 function openMenu(){
   game = 'menu';
+  endDemo();
   $('#result').classList.add('off');
   $('#menu').classList.remove('off');
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
@@ -1245,11 +1261,13 @@ function startGame(){
 $('#startBtn').addEventListener('click', startGame);
 $('#rRetry').addEventListener('click', resetPlayer);
 $('#rNew').addEventListener('click', buildLevel);
+$('#rDemo').addEventListener('click', startDemo);
 $('#rMenu').addEventListener('click', openMenu);
 
 function updateHUD(ev, son){
   const tm = Math.floor(st.time); $('#sTime').textContent = `${Math.floor(tm/60)}:${String(tm % 60).padStart(2, '0')}`;
   $('#sHit').textContent = st.hits;
+  $('#sHit').style.color = st.hits ? '#ff6b6b' : '';
   $('#sCurb').textContent = st.curbs;
   $('#sKiri').textContent = kirikaeshi();
   const ad = ev.err / D2R;
@@ -1273,6 +1291,7 @@ function updateHUD(ev, son){
   if ($('#rearView').classList.contains('noavm') === S.avm) { $('#rearView').classList.toggle('noavm', !S.avm); resize(); }
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
+  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
   else if (game !== 'play') showMsg('', '');
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
@@ -1342,6 +1361,158 @@ function endReplay(){
   if (trailMesh) { scene.remove(trailMesh); trailMesh.geometry.dispose(); trailMesh.material.dispose(); trailMesh = null; }
   document.body.classList.remove('resultView');
 }
+
+// ---------------- お手本（自動運転） ----------------
+// ゲームと同じ車の動き・当たり判定で、向きの切り替え（前進⇄後退）が最も少ない経路を探す。
+// 同じ回数なら、走る距離とハンドルの持ち替えが少ない経路を選ぶ。
+function idealPose(){
+  // 理想の駐車位置（後軸中心）
+  if (level.type === 'bay') {
+    const sZ = level.backZ - level.tRow*0.8, h = level.reqH;
+    return { x: level.tx, z: S.mode === 'back' ? sZ - level.tRow*0.34 : sZ - level.tRow*0.34 - Math.cos(h)*C.wb, h };
+  }
+  return { x: level.target.x - C.cOff, z: level.curbZ + 0.3 + C.wid/2, h: level.reqH };
+}
+function planDemo(){
+  // まず周りと 3cm の余裕を取って探し、だめなら余裕なしで
+  return planDemoM(0.03) || planDemoM(0);
+}
+function planDemoM(MARGIN){
+  const s0 = { x: st.x, z: st.z, h: st.h };
+  // 向きの区切り（2°）より1歩の旋回量が小さいと曲がれなくなるので、フルロックで1.5区切り以上回る歩幅にする
+  const R = 0.15, A = 2*D2R, NH = Math.round(2*Math.PI/A), DS = Math.max(0.2, 1.5*A*C.wb/Math.tan(C.maxSteer));
+  const exit = level.task === 'exit';
+  const t = exit ? level.goal : level.target, pts = [[s0.x, s0.z], [t.x, t.z]];
+  const X0 = Math.min(...pts.map(p => p[0])) - 9, X1 = Math.max(...pts.map(p => p[0])) + 9;
+  const Z0 = Math.min(...pts.map(p => p[1])) - 9, Z1 = Math.max(...pts.map(p => p[1])) + 9;
+  const NX = Math.ceil((X1 - X0)/R) + 1, NZ = Math.ceil((Z1 - Z0)/R) + 1;
+  const best = new Float32Array(NX*NZ*NH*2).fill(Infinity);
+  const key = (x, z, h, dir) => {
+    const ix = Math.round((x - X0)/R), iz = Math.round((z - Z0)/R);
+    if (ix < 0 || iz < 0 || ix >= NX || iz >= NZ) return -1;
+    let ih = Math.round(h/A) % NH; if (ih < 0) ih += NH;
+    return ((ix*NZ + iz)*NH + ih)*2 + (dir > 0 ? 0 : 1);
+  };
+  const ideal = exit ? null : idealPose();
+  const strict = (x, z, h) => {
+    if (exit) return pointIn(level.goal, x + Math.sin(h)*C.cOff, z + Math.cos(h)*C.cOff) && Math.abs(wrapAng(h - level.goalH)) < 6*D2R;
+    return Math.hypot(x - ideal.x, z - ideal.z) < 0.22 && Math.abs(wrapAng(h - ideal.h)) < 3*D2R;
+  };
+  const loose = (x, z, h) => {
+    const sv = [st.x, st.z, st.h]; st.x = x; st.z = z; st.h = h;
+    const ev = evaluate(); [st.x, st.z, st.h] = sv;
+    return exit ? ev.done : ev.ready;
+  };
+  // ノード：x, z, h, 向き, ハンドル段階, 親, コスト
+  const NXs = [], NZs = [], NHs = [], ND = [], NK = [], NP = [], NC = [];
+  const heapC = [], heapN = [];
+  const push = (c, n) => {
+    let i = heapC.length; heapC.push(c); heapN.push(n);
+    while (i > 0) { const p = (i - 1) >> 1; if (heapC[p] <= c) break; heapC[i] = heapC[p]; heapN[i] = heapN[p]; i = p; }
+    heapC[i] = c; heapN[i] = n;
+  };
+  const pop = () => {
+    const n = heapN[0], lc = heapC.pop(), ln = heapN.pop(), L = heapC.length;
+    if (L) {
+      let i = 0;
+      for (;;) { let m = 2*i + 1; if (m >= L) break; if (m + 1 < L && heapC[m + 1] < heapC[m]) m++; if (heapC[m] >= lc) break; heapC[i] = heapC[m]; heapN[i] = heapN[m]; i = m; }
+      heapC[i] = lc; heapN[i] = ln;
+    }
+    return n;
+  };
+  const add = (x, z, h, d, k, p, c) => { NXs.push(x); NZs.push(z); NHs.push(h); ND.push(d); NK.push(k); NP.push(p); NC.push(c); return NXs.length - 1; };
+  // 前進⇄後退の切り替え1回は 20m 走るのと同じ重さ。目標までの直線距離を目安に探す（A*）
+  const SW = 20, LV = [-2, -1, 0, 1, 2];
+  const gc = exit ? [level.goal.x, level.goal.z, Math.max(level.goal.hw, level.goal.hl)] : null;
+  const hEst = exit ? (x, z, h) => Math.max(0, Math.hypot(x + Math.sin(h)*C.cOff - gc[0], z + Math.cos(h)*C.cOff - gc[1]) - gc[2])
+                    : (x, z) => Math.hypot(x - ideal.x, z - ideal.z);
+  // 教科書どおりの動き：最初と最後の向きを決めておく
+  //   入庫：前進で始める。バック／縦列はバックで、前向きは前進で枠に入れて終わる
+  //   出庫：前向きに止めた車はバックで、後ろ向きに止めた車は前進で動き出し、最後は前進で出口へ
+  const firstDirs = !exit ? [1] : level.type === 'bay' ? [S.mode === 'front' ? 1 : -1] : [1, -1];
+  const lastDir = exit ? 1 : S.mode === 'front' ? 1 : -1;
+  for (const d of firstDirs) push(hEst(s0.x, s0.z, s0.h), add(s0.x, s0.z, s0.h, d, 0, -1, 0));
+  let found = -1, fallback = -1, pops = 0;
+  while (heapC.length && pops < 1500000) {
+    const f = heapC[0], n = pop(), c = NC[n]; pops++;
+    const x = NXs[n], z = NZs[n], h = NHs[n], d = ND[n];
+    const kk = key(x, z, h, d); if (kk < 0 || best[kk] < c - 1e-3) continue;
+    if (n > 1 && d === lastDir) {
+      if (strict(x, z, h) && loose(x, z, h)) { found = n; break; }
+      if (fallback < 0 && loose(x, z, h)) fallback = n;
+    }
+    if (fallback >= 0 && f > NC[fallback] + SW) break;   // 同じ切り返し回数でぴったり止まれないときは「枠に入った」で妥協
+    for (const lv of LV) {
+      const dl = lv/2*C.maxSteer;
+      const nx = x + d*DS*Math.sin(h), nz = z + d*DS*Math.cos(h), nh = h + d*DS/C.wb*Math.tan(dl);
+      const nc = c + DS*(d < 0 ? 1.15 : 1) + 0.12*Math.abs(lv - NK[n]) + (lv ? 0.01 : 0);
+      const k2 = key(nx, nz, nh, d); if (k2 < 0 || best[k2] <= nc) continue;
+      if (collides({ x: nx, z: nz, h: nh }, MARGIN)) continue;
+      const hm = h + d*DS/2/C.wb*Math.tan(dl);   // 1歩の途中でかすらないか
+      if (collides({ x: x + d*DS/2*Math.sin(hm), z: z + d*DS/2*Math.cos(hm), h: hm }, MARGIN)) continue;
+      best[k2] = nc; push(nc + hEst(nx, nz, nh), add(nx, nz, nh, d, lv, n, nc));
+    }
+    // 止まって前進⇄後退を切り替える
+    const k3 = key(x, z, h, -d), nc3 = c + SW;
+    if (k3 >= 0 && best[k3] > nc3) { best[k3] = nc3; push(nc3 + hEst(x, z, h), add(x, z, h, -d, NK[n], n, nc3)); }
+  }
+  const end = found >= 0 ? found : fallback;
+  if (end < 0) return null;
+  const path = [];
+  for (let n = end; n >= 0; n = NP[n]) path.push({ x: NXs[n], z: NZs[n], h: NHs[n], d: ND[n], k: NK[n] });
+  path.reverse();
+  // 同じ場所での向き替えノードは1つにまとめる
+  const out = [];
+  for (const p of path) { const q = out[out.length - 1]; if (q && q.x === p.x && q.z === p.z && q.h === p.h) { q.d = p.d; continue; } out.push(p); }
+  return out;
+}
+let demo = null;
+function startDemo(){
+  resetPlayer();
+  game = 'demo';
+  setTimeout(() => {
+    if (game !== 'demo') return;
+    const path = planDemo();
+    if (!path || path.length < 2) { game = 'play'; showToastInfo('この配置ではお手本を作れませんでした'); return; }
+    makeDemo(path);
+  }, 60);
+}
+function makeDemo(path){
+  const segs = [];
+  for (let i = 1; i < path.length; i++) segs.push({ a: path[i - 1], b: path[i], d: path[i].d, dl: path[i].k/2*C.maxSteer, len: Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z) || 0.01 });
+  demo = { path, segs, i: 0, t: 0, wait: 0.6, done: false, dir: 0, run: 0 };
+  st.started = true;
+}
+function stepDemo(dt){
+  const D = demo;
+  if (!D) return;
+  if (D.done) { st.v = 0; st.gear = 'P'; return; }
+  st.time += dt;
+  const seg = D.segs[D.i];
+  // ハンドルは手で回す速さで
+  const rate = C.maxSteer / 0.6;
+  st.delta += clamp(seg.dl - st.delta, -rate*dt, rate*dt);
+  if (D.wait > 0) { D.wait -= dt; st.v = 0; return; }
+  if (seg.d !== D.dir) { if (D.dir !== 0) st.dirChanges++; D.dir = seg.d; st.gear = seg.d > 0 ? 'D' : 'R'; D.run = 0; }
+  // 動き出しと、次に止まる手前はゆっくり
+  let left = -D.t*seg.len; for (let j = D.i; j < D.segs.length && D.segs[j].d === seg.d; j++) left += D.segs[j].len;
+  D.run += dt;
+  const v = Math.max(0.3, Math.min(seg.d > 0 ? 1.6 : 1.0, left*0.9, 0.3 + D.run*0.8));
+  st.v = seg.d*v;
+  D.t += v*dt/seg.len;
+  while (D.t >= 1) {
+    D.t = (D.t - 1)*seg.len/(D.segs[Math.min(D.i + 1, D.segs.length - 1)].len); D.i++;
+    if (D.i >= D.segs.length) {
+      const p = D.path[D.path.length - 1];
+      D.done = true; st.x = p.x; st.z = p.z; st.h = p.h; st.v = 0; st.gear = 'P';
+      return;
+    }
+    if (D.segs[D.i].d !== seg.d) { D.t = 0; D.wait = 0.7; st.v = 0; break; }
+  }
+  const s2 = D.segs[D.i], a = s2.a, b = s2.b, u = D.t;
+  st.x = a.x + (b.x - a.x)*u; st.z = a.z + (b.z - a.z)*u; st.h = a.h + wrapAng(b.h - a.h)*u;
+}
+function endDemo(){ demo = null; }
 
 // ---------------- 描画・カメラ ----------------
 function predictPath(dir, lz){
@@ -1508,13 +1679,14 @@ function loop(t){
       if (recT >= REC_DT && st.rec.length < 12000) { recT = 0; st.rec.push([st.x, st.z, st.h, st.delta, st.v < -0.01 ? 1 : 0]); }
     }
   }
+  if (game === 'demo') stepDemo(dt);
   const mode = updateScene(dt);
   const ev = evaluate();
   if (game === 'play' && ev.exit && ev.done) showResult(ev);
   const son = sonar();
   updateBackSound(dt, Math.min(son[3], son[4], son[5]));
   // センサー音
-  if (S.sound && game === 'play' && (st.gear === 'R' || st.gear === 'D')) {
+  if (S.sound && (game === 'play' || game === 'demo') && (st.gear === 'R' || st.gear === 'D')) {
     const d = st.gear === 'R' ? Math.min(son[3], son[4], son[5]) : Math.min(son[0], son[1], son[2]);
     const interval = d < 0.35 ? 0.09 : d < 0.6 ? 0.18 : d < 1.0 ? 0.36 : d < SONAR_RANGE ? 0.6 : 0;
     beepT += dt;
