@@ -321,6 +321,7 @@ body.exitTask #tDone{display:none}
     <p id="taskNote" class="keys" style="margin:6px 0 0"></p>
 
     <button class="bigbtn" id="startBtn">スタート</button>
+    <p id="menuBack" class="keys" style="margin:6px 0 0;text-align:center" hidden><kbd>Esc</kbd> でメニューを閉じて続きから</p>
 
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
@@ -797,7 +798,7 @@ addEventListener('keydown', e => {
   handleKey(e.code);
 });
 function handleKey(code){
-  if (game === 'menu') { if (code === 'Enter') startGame(); return; }
+  if (game === 'menu') { if (code === 'Enter') startGame(); else if (code === 'Escape') closeMenu(); return; }
   if (game === 'demo') {
     if (code === 'KeyR' || code === 'Enter') resetPlayer();
     else if (code === 'KeyO') startDemo();
@@ -967,7 +968,7 @@ function pollGamepad(dt){
   if (edge(3)) handleKey('KeyC');       // X: カメラ切替
   if (edge(2)) handleKey('KeyU');       // Y: ミラー調整
   if (edge(8)) handleKey('KeyR');       // −: やり直し
-  if (edge(9)) game === 'menu' ? startGame() : handleKey('Escape');   // +: 設定 / 開始
+  if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : startGame()) : handleKey('Escape');   // +: 設定 / 開始
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
   if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
   if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
@@ -1224,13 +1225,30 @@ function flashHit(text){
   const f = $('#flash'); f.classList.add('hit'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('hit')));
   const t = $('#toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTO); toastTO = setTimeout(() => t.classList.remove('show'), 700);
 }
+// メニューを開いた元の画面。Esc でそこへ戻る（最初のメニューは null）
+let menuFrom = null, menuSnap = '';
+const layoutKey = () => ['slot','task','mode','crowd','car','width'].map(k => S[k]).join();
 function openMenu(){
+  menuFrom = game; menuSnap = layoutKey() + '|' + S.cam;
   game = 'menu';
   endDemo();
   $('#result').classList.add('off');
   $('#menu').classList.remove('off');
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
   syncMenu();
+  $('#menuBack').hidden = IS_TOUCH;
+}
+function closeMenu(){
+  if (!menuFrom) return;
+  const [lay, cam] = menuSnap.split('|');
+  // コースに関わる設定を変えたときは、新しい設定で始め直す
+  if (layoutKey() !== lay) { startGame(); return; }
+  if (S.cam !== cam) camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
+  $('#menu').classList.add('off');
+  document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
+  if (menuFrom === 'demo') resetPlayer();          // お手本の途中だったら、自分で練習する状態に
+  else { game = menuFrom; if (game === 'result') $('#result').classList.remove('off'); }
+  menuFrom = null;
 }
 const TASK_NOTE = {
   park:{ back:'通路から、青い枠にバックで入れます。', front:'通路から、青い枠に前から入れます。', either:'通路から、青い枠にバックでも前からでも好きな方で入れます。', parallel:'路肩の前後の車の間に入れます。' },
