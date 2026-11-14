@@ -953,9 +953,10 @@ $('#gearbox').appendChild($('#tSonar'));
 if (IS_TOUCH) document.body.classList.add('touch');
 const touchSteer = { active:false, id:null, lastAng:0, cwDeg:0 };
 let slowToggle = false;
-// 「横向きのほうが遊びやすいです」：縦向きでスタートしたとき、最初の2回だけ4秒間出す（タップで消える）
+// 「横向きのほうが遊びやすいです」：スマホを縦向きでスタートしたとき、最初の2回だけ4秒間出す（タップで消える）
+// iPad など画面の大きい端末は縦でも十分遊べるので出さない
 function showRotateHint(){
-  if (!IS_TOUCH || innerHeight <= innerWidth) return;
+  if (!IS_TOUCH || innerHeight <= innerWidth || Math.min(innerWidth, innerHeight) >= 600) return;
   let n = 0; try { n = +localStorage.getItem('rotateHintCount') || 0; } catch(e) {}
   if (n >= 2) return;
   try { localStorage.setItem('rotateHintCount', n + 1); } catch(e) {}
