@@ -52,6 +52,12 @@
 7. **アップロード**：Xcode で Product → Archive → Distribute App → App Store Connect（Team を選んで署名）
 8. TestFlight で実機の購入（Sandbox）を確認してから、審査に提出
 
+## Firebase（Analytics・Crashlytics）
+- Firebase コンソールからダウンロードした `GoogleService-Info.plist` を `ParkingGame/` に置く。**公開リポジトリには入れない**（`.gitignore` 済み）
+- ないときは Firebase なしで動く。ただし Release ビルド（App Store に出すもの）は、ないと止まる
+- Debug ビルドでは集計しない（起動引数 `-FIRDebugEnabled` を付けたときだけ Analytics に送る）
+- Release ビルドのとき、クラッシュの原因を読むための情報（dSYM）を Crashlytics に送る（ビルドの「Crashlytics」の手順）
+
 ## 進み具合の保存（iCloud）
 ステージの解放・過去最高得点・バッジ・設定は、ゲーム（Web）の localStorage に加えて、iCloud のキー値ストレージ（`NSUbiquitousKeyValueStore`）にも保存します。起動時とほかの端末で変わったときに iCloud のデータをゲームへ送り、ゲーム側で端末の記録と合わせて、進んでいる方・高い方を残します。Capability は `Config/ParkingGame.entitlements`（iCloud の Key-value storage）。
 

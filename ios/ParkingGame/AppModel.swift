@@ -87,6 +87,7 @@ final class AppModel: ObservableObject {
             startAdsIfReady()
         case "tutorialDone":
             tutorialOpen = false
+            Telemetry.log("tutorial_complete")
             startAdsIfReady()
         case "screen":
             let name = msg["name"] as? String ?? ""
@@ -126,6 +127,9 @@ final class AppModel: ObservableObject {
             guard !cloudOff, let data = msg["data"] as? [String: String] else { break }
             for (k, v) in data where Self.cloudKeys.contains(k) { cloud.set(v, forKey: k) }
             cloud.synchronize()
+        case "event":
+            // ゲーム側の出来事（ステージ開始・結果など）を Analytics に記録
+            if let name = msg["name"] as? String { Telemetry.log(name, msg["params"] as? [String: Any] ?? [:]) }
         case "restore":
             Task { await store.restore() }
         case "openURL":
