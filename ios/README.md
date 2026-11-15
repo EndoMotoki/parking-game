@@ -45,7 +45,7 @@
 ### 自分でやること
 1. **App Store Connect でアプリを作る**：名前・Bundle ID・SKU は `AppStore/listing.md` のとおり
 2. **有料アプリの契約**（ビジネス → 契約）：口座・税の情報を登録（アプリ内課金に必要）
-3. **アプリ内課金を作る**：非消耗型 `io.github.endomotoki.parkinggame.premium`、¥360
+3. **アプリ内課金を作る**：非消耗型 `com.endomotoki.parking.premium`、¥360
 4. **AdMob** でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える（このあと頼んでもらえれば差し替えます）
    - `Config/Info.plist` の `GADApplicationIdentifier`
    - `ParkingGame/AdManager.swift` の `AdUnit.banner` と `AdUnit.interstitial`
