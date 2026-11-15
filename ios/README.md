@@ -31,14 +31,28 @@
 
 ## 公開までにやること
 
-1. Apple Developer Program に登録する
-2. Bundle ID（いまは `io.github.endomotoki.parkinggame`）を決めて、プロジェクトの設定と `Store.swift` の商品 ID、`Products.storekit` を合わせる
-3. App Store Connect でアプリを作り、非消耗型の課金アイテムを1つ登録する（価格は ¥360 前後の価格帯）。有料アプリの契約・口座・税の情報も登録する
-   - 広告を削除＋ハード解放：`<Bundle ID>.premium`（`Store.swift` の `Store.productID` と `Products.storekit` も合わせる）
-4. AdMob でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える
+掲載文・スクリーンショット・課金アイテム・プライバシーの答え方は [`AppStore/listing.md`](AppStore/listing.md) にまとめています。
+
+### 準備済み（このリポジトリ）
+- [x] アプリアイコン（1024×1024、透明なし）
+- [x] プライバシーマニフェスト（`ParkingGame/PrivacyInfo.xcprivacy`）
+- [x] 暗号化の申告（`ITSAppUsesNonExemptEncryption = NO`）
+- [x] SKAdNetwork ID（Google 公開の一覧、2026-01-30 版）
+- [x] プライバシーポリシー・サポートページ（GitHub Pages：`privacy.html`、`support.html`）。アプリのメニューからも開ける
+- [x] App Store 用スクリーンショット（`AppStore/screenshots/`）
+- [x] Release ビルドが通ること
+
+### 自分でやること
+1. **App Store Connect でアプリを作る**：名前・Bundle ID・SKU は `AppStore/listing.md` のとおり
+2. **有料アプリの契約**（ビジネス → 契約）：口座・税の情報を登録（アプリ内課金に必要）
+3. **アプリ内課金を作る**：非消耗型 `io.github.endomotoki.parkinggame.premium`、¥360
+4. **AdMob** でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える（このあと頼んでもらえれば差し替えます）
    - `Config/Info.plist` の `GADApplicationIdentifier`
    - `ParkingGame/AdManager.swift` の `AdUnit.banner` と `AdUnit.interstitial`
-   - `Config/Info.plist` の `SKAdNetworkItems`（Google が公開している一覧を全部入れる）
-5. EU・英国向けに出すなら、AdMob の同意メッセージ（UMP）を設定する
-6. プライバシーポリシーのページを用意し、App Store Connect にプライバシー情報（広告・トラッキング）を記入する
-7. Product → Archive でアップロードして審査に出す
+5. **配信地域**：日本のみがおすすめ。EU・英国にも出すなら、AdMob の同意メッセージ（UMP）を設定して、アプリに同意画面を入れる
+6. **掲載情報を入力**：説明文・キーワード・スクリーンショット・プライバシー・年齢制限（`AppStore/listing.md`）
+7. **アップロード**：Xcode で Product → Archive → Distribute App → App Store Connect（Team を選んで署名）
+8. TestFlight で実機の購入（Sandbox）を確認してから、審査に提出
+
+### スクリーンショットの撮り直し
+Debug ビルドを起動引数 `-screenshots YES -js "<場面を用意するコード>"` で起動すると、広告なし・購入済みの状態で、指定した場面を自動で用意します（Debug ビルドのみ）。

@@ -39,6 +39,9 @@ final class AppModel: ObservableObject {
     /// 前面に出ていて、ゲームの読み込みと初回の説明が終わったら、トラッキング許可を聞いてから広告 SDK を始める
     private func startAdsIfReady() {
         guard appActive, webReady, !tutorialOpen, !started else { return }
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "screenshots") { return }   // スクリーンショット用：許可の確認も広告も出さない
+        #endif
         started = true
         Task {
             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -97,6 +100,11 @@ final class AppModel: ObservableObject {
             Task { await store.buy() }
         case "restore":
             Task { await store.restore() }
+        case "openURL":
+            // プライバシーポリシーなど、自分のサイトのページだけ Safari で開く
+            if let str = msg["url"] as? String, let url = URL(string: str), url.scheme == "https", url.host == "endomotoki.github.io" {
+                UIApplication.shared.open(url)
+            }
         default:
             break
         }
