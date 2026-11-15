@@ -23,12 +23,16 @@ final class Store {
     #if DEBUG
     /// シミュレーターで App Store なしに流れを確かめるための疑似ストア（起動引数 -mockStore のときだけ）
     private let mock = ProcessInfo.processInfo.arguments.contains("-mockStore")
+    /// App Store 用のスクリーンショットを撮るとき（起動引数 -screenshots YES）：購入済みとして広告を出さない
+    private let screenshots = UserDefaults.standard.bool(forKey: "screenshots")
     #else
     private let mock = false
+    private let screenshots = false
     #endif
 
     init() {
         owned = UserDefaults.standard.bool(forKey: Self.savedKey)
+        if screenshots { owned = true; return }
         if mock {
             price = "¥360"
             return
@@ -46,7 +50,7 @@ final class Store {
     }
 
     private func changed() {
-        UserDefaults.standard.set(owned, forKey: Self.savedKey)
+        if !screenshots { UserDefaults.standard.set(owned, forKey: Self.savedKey) }
         onChange?()
     }
 

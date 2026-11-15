@@ -455,6 +455,7 @@ body.exitTask #tDone{display:none}
 
     <div id="menuFoot">
       <button class="linkbtn" id="tutBtn">使い方</button>
+      <a class="linkbtn" id="privacyLink" href="https://endomotoki.github.io/parking-game/privacy.html" target="_blank" rel="noopener">プライバシー</a>
       <div id="appStore" hidden><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
     </div>
   </div>
@@ -2354,6 +2355,8 @@ if (APP) {
   $('#buyNoAds').addEventListener('click', () => appPost({ type:'buy' }));
   $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
+  // リンクはアプリの外（Safari）で開く
+  $('#privacyLink').addEventListener('click', e => { e.preventDefault(); appPost({ type:'openURL', url: e.currentTarget.href }); });
   // アプリから購入状態が届く
   window.appState = s => {
     hardOwned = !!s.owned; hardPrice = s.price || ''; syncStageMenu();
