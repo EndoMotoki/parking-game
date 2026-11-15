@@ -1,0 +1,32 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<style>
+html,body{margin:0;width:100vw;height:100vh;overflow:hidden}
+body{display:flex;align-items:center;gap:3.5vw;padding:0 4vw 0 5vw;box-sizing:border-box;
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:#fff;
+  background:radial-gradient(120% 140% at 0% 0%,#2a3442 0%,#151a21 55%,#0d1014 100%)}
+body.tall{flex-direction:column;justify-content:center;padding:6vh 6vw;gap:4vh;text-align:center}
+.txt{flex:0 0 auto;}
+body.tall .txt{flex:none}
+.tag{display:inline-block;font-weight:700;color:#15171a;background:#f08a3c;border-radius:999px;padding:.35em 1em;margin-bottom:1.1em}
+h1{margin:0;font-weight:800;line-height:1.25;letter-spacing:.02em;white-space:nowrap}
+p{white-space:nowrap}
+h1 em{font-style:normal;color:#f7a35c}
+p{margin:1em 0 0;color:#c4ccd6;line-height:1.6;font-weight:500}
+.shot{flex:1;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;height:100%}
+body.tall .shot{flex:1;height:auto;width:100%}
+.shot img{max-width:100%;max-height:88vh;border-radius:2.2vmin;border:1.1vmin solid #05070a;
+  box-shadow:0 3vmin 7vmin rgba(0,0,0,.55),0 0 0 .35vmin #3a424d}
+body.tall .shot img{max-height:100%}
+</style></head><body>
+<div class="txt"><div class="tag" id="tag"></div><h1 id="t"></h1><p id="s"></p></div>
+<div class="shot"><img id="img"></div>
+<script>
+const q=new URLSearchParams(location.search), W=+q.get('w'), H=+q.get('h');
+const tall = H > W || q.get('col'); if (tall) document.body.classList.add('tall');
+const u = Math.min(W, H) / 100;   // 画面の短い辺の1%
+document.getElementById('tag').textContent=q.get('tag')||'';
+document.getElementById('tag').style.fontSize=(u*2.6)+'px';
+const t=document.getElementById('t'); t.innerHTML=q.get('t'); t.style.fontSize=(u*(tall?6.4:7.4))+'px';
+const s=document.getElementById('s'); s.innerHTML=q.get('s'); s.style.fontSize=(u*(tall?2.9:3.1))+'px';
+document.getElementById('img').src=q.get('img');
+</script></body></html>
