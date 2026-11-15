@@ -740,10 +740,12 @@ const wheelGeo = {};
 function getWheelGeo(r){ if (!wheelGeo[r]) { const g = new THREE.CylinderGeometry(r, r, 0.22, 16); g.rotateZ(Math.PI/2); wheelGeo[r] = g; } return wheelGeo[r]; }
 const shadowMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.32, depthWrite:false });
 // ---------------- ライト（夜のステージ） ----------------
-// 地面の明るさは、光の形の半透明な板を足し合わせて描く（本物の照明より軽く、ミラー・モニターにもそのまま映る）
+// 地面の明るさは、光の形の板を足し合わせて描く（本物の照明より軽く、ミラー・モニターにもそのまま映る）
+// 板の絵は黒地に描く（透明を使わない）。iPhone の Safari は透明に近い色を粗く保存するため、薄い部分が青緑の点々になってしまう
 function glowTex(draw){
   const c = document.createElement('canvas'); c.width = 64; c.height = 128;
-  draw(c.getContext('2d'), c.width, c.height);
+  const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+  draw(g, c.width, c.height);
   return new THREE.CanvasTexture(c);
 }
 const beamTex = glowTex((g, w, h) => {
@@ -759,7 +761,7 @@ const poolTex = glowTex((g, w, h) => {
   r.addColorStop(0, 'rgba(255,226,170,0.75)'); r.addColorStop(0.5, 'rgba(255,214,150,0.35)'); r.addColorStop(1, 'rgba(255,210,140,0)');
   g.fillStyle = r; g.fillRect(0, 0, w, w);
 });
-const glowMat = (tex, opacity) => new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+const glowMat = (tex, opacity) => new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(opacity, opacity, opacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });   // 黒は足しても変わらない。明るさは色で調整
 const LAMP = {
   head: new THREE.MeshBasicMaterial({ color:0xfff6d8 }),
   tail: new THREE.MeshBasicMaterial({ color:0xff2a2a }),     // ブレーキ
