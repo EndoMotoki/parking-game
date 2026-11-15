@@ -1,29 +1,44 @@
 {
-  "identifier" : "6C1A7E2B",
-  "nonRenewingSubscriptions" : [ ],
-  "products" : [
+  "identifier": "6C1A7E2B",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "displayPrice" : "360",
-      "familyShareable" : false,
-      "internalID" : "6C1A7E2C",
-      "localizations" : [
+      "displayPrice": "360",
+      "familyShareable": false,
+      "internalID": "6C1A7E2C",
+      "localizations": [
         {
-          "description" : "アプリ内の広告をすべて表示しなくなります",
-          "displayName" : "広告を削除",
-          "locale" : "ja"
+          "description": "アプリ内の広告をすべて表示しなくなります",
+          "displayName": "広告を削除",
+          "locale": "ja"
         }
       ],
-      "productID" : "io.github.endomotoki.parkinggame.noads",
-      "referenceName" : "広告削除",
-      "type" : "NonConsumable"
+      "productID": "io.github.endomotoki.parkinggame.noads",
+      "referenceName": "広告削除",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "480",
+      "familyShareable": false,
+      "internalID": "6C1A7E2D",
+      "localizations": [
+        {
+          "description": "動く車や歩行者、柱のある立体駐車場など、難しい10ステージを遊べるようになります",
+          "displayName": "ハードステージ",
+          "locale": "ja"
+        }
+      ],
+      "productID": "io.github.endomotoki.parkinggame.hardstages",
+      "referenceName": "ハードステージ",
+      "type": "NonConsumable"
     }
   ],
-  "settings" : {
-    "_storefront" : "JPN"
+  "settings": {
+    "_storefront": "JPN"
   },
-  "subscriptionGroups" : [ ],
-  "version" : {
-    "major" : 4,
-    "minor" : 0
+  "subscriptionGroups": [],
+  "version": {
+    "major": 4,
+    "minor": 0
   }
 }
