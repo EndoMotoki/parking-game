@@ -633,6 +633,15 @@ const BADGES = {
   hard:   { name:'ハード制覇',   desc:`ハード全${HARD_STAGES.length}ステージをクリア`,   c1:'#ffe08a', c2:'#c8891e' },
 };
 let badges = {}; try { badges = JSON.parse(localStorage.getItem('badges') || '{}') || {}; } catch(e) {}
+// ハードが10ステージだったころに全クリアした人：11から続けられるようにする（当時は最後をクリアしても「次」を保存していなかった）。
+// 「ハード制覇」は全20ステージのクリアに変わったので、もう一度取り直し
+if (badges.hard && HARD_STAGES.length > 10) try {
+  if ((+localStorage.getItem(UNLOCK_KEY.hard) || 1) <= 10) {
+    localStorage.setItem(UNLOCK_KEY.hard, 11);
+    unlocked.hard = sel.hard = 11;
+    delete badges.hard; localStorage.setItem('badges', JSON.stringify(badges));
+  }
+} catch(e) {}
 function badgeSvg(set){
   const b = BADGES[set], id = 'bg' + set + (badgeSvg.n = (badgeSvg.n || 0) + 1);   // 同じ id が隠れた場所にあるとグラデーションが描かれないので毎回別の id
   return `<svg viewBox="0 0 64 64"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${b.c1}"/><stop offset="1" stop-color="${b.c2}"/></linearGradient></defs>`
@@ -1640,10 +1649,10 @@ function finishResult(score, rows, tips, title){
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     if (stageCleared) {
       title = stageNo === list.length ? (stageSet === 'hard' ? 'ハード 全ステージクリア！' : '全ステージクリア！') : `${stageLabel(stageSet, stageNo)} クリア！`;
-      if (stageNo < list.length && stageNo + 1 > unlocked[stageSet]) {
-        unlocked[stageSet] = stageNo + 1; sel[stageSet] = unlocked[stageSet];
-        try { localStorage.setItem(UNLOCK_KEY[stageSet], unlocked[stageSet]); } catch(e) {}
-      }
+      // 最後のステージでも「次」を保存しておく（あとでステージが増えたとき、そこから続けられるように）
+      let saved = 1; try { saved = +localStorage.getItem(UNLOCK_KEY[stageSet]) || 1; } catch(e) {}
+      if (stageNo + 1 > saved) try { localStorage.setItem(UNLOCK_KEY[stageSet], stageNo + 1); } catch(e) {}
+      if (stageNo < list.length && stageNo + 1 > unlocked[stageSet]) { unlocked[stageSet] = stageNo + 1; sel[stageSet] = unlocked[stageSet]; }
     } else title = `${stageLabel(stageSet, stageNo)}：あと少し（${STAGE_CLEAR}点以上・接触なしでクリア）`;
   }
   // 最後のステージをクリアしたらバッジ
