@@ -28,7 +28,7 @@ struct GameWebView: UIViewRepresentable {
         // スクリーンショット用：起動引数 -js "<コード>" を、ページを読み込んだあとに実行（場面を用意する）
         if let js = UserDefaults.standard.string(forKey: "js") {
             config.userContentController.addUserScript(WKUserScript(
-                source: "window.addEventListener('load', () => setTimeout(() => { \(js) }, 1500));",
+                source: "setTimeout(() => { \(js) }, 2500);",
                 injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         }
         #endif

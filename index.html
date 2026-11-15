@@ -71,7 +71,7 @@ body.parallel #stats .curbStat{display:inline}
 #toast{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:9;font-size:15px;font-weight:600;
   background:rgba(14,16,20,.8);color:var(--bad);padding:8px 16px;border-radius:6px;opacity:0;transition:opacity .4s;pointer-events:none}
 #toast.show{opacity:1;transition:none}
-#replayLabel{display:none;position:fixed;left:14px;top:12px;z-index:21;background:var(--hud);border-radius:6px;padding:5px 10px;
+#replayLabel{display:none;position:fixed;left:calc(14px + env(safe-area-inset-left));top:calc(12px + var(--sat));z-index:21;background:var(--hud);border-radius:6px;padding:5px 10px;
   font-size:12px;color:var(--muted)}
 body.resultView #replayLabel{display:flex;gap:10px}
 #replayLabel i{font-style:normal;color:#48d6ff}
