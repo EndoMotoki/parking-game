@@ -452,7 +452,7 @@ body.exitTask #tDone{display:none}
 
     <div id="menuFoot">
       <button class="linkbtn" id="tutBtn">使い方</button>
-      <div id="appStore" hidden><button class="linkbtn" id="buyNoAds">広告を削除</button><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
+      <div id="appStore" hidden><button class="linkbtn" id="buyNoAds">広告を削除＋ハード解放</button><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
     </div>
   </div>
 </div>
@@ -495,8 +495,8 @@ body.exitTask #tDone{display:none}
       </section>
       <section class="tut-slide" id="tutAdSlide" hidden>
         <svg viewBox="0 0 150 110"><rect x="25" y="20" width="100" height="70" rx="10" fill="#2e3238"/><text x="75" y="62" font-size="24" font-weight="700" fill="#8b939c" text-anchor="middle">AD</text><line x1="30" y1="88" x2="120" y2="22" stroke="#ef5b5b" stroke-width="7" stroke-linecap="round"/></svg>
-        <h2>広告を消すこともできます</h2>
-        <p>このアプリは広告で無料になっています。広告が気になるときは、メニューの「広告を削除」から一度購入すると、それ以降ずっと広告が出なくなります。</p>
+        <h2>広告を消して、ハードステージも</h2>
+        <p>このアプリは広告で無料になっています。メニューの「広告を削除＋ハード解放」を一度購入すると、それ以降ずっと広告が出なくなり、動く車や立体駐車場などのハードステージも遊べるようになります。</p>
         <p>機種変更したときは「購入を復元」で引き継げます。</p>
       </section>
     </div>
@@ -602,7 +602,7 @@ const SETS = { normal: STAGES, hard: HARD_STAGES };
 const STAGE_KEYS = ['slot','task','mode','crowd','car','width'];
 const STAGE_CLEAR = 60;      // 60点以上（接触なし）でクリア
 let stageSet = 'normal', stageNo = 0, stageFree = null, stageCleared = false, menuStage = null;
-let hardOwned = false, hardPrice = '';      // ハードステージを買ったか（iOS アプリから届く）
+let hardOwned = false, hardPrice = '';      // 購入済みか（広告削除＋ハード解放をまとめた1つの購入。iOS アプリから届く）
 const UNLOCK_KEY = { normal:'stageUnlocked', hard:'hardUnlocked' };
 const unlocked = {}, sel = {};
 for (const k of ['normal', 'hard']) {
@@ -1735,7 +1735,7 @@ const hardLocked = () => selSet === 'hard' && !hardOwned;
 const menuStart = () => menuTab === 'free' ? startGame() : !hardLocked() && startStage(selSet, sel[selSet]);
 $('#stageBtn').addEventListener('click', () => {
   if (!hardLocked()) return startStage(selSet, sel[selSet]);
-  if (inApp()) appPost({ type:'buy', product:'hard' });   // アプリ版：ハードステージを購入
+  if (inApp()) appPost({ type:'buy' });   // アプリ版：広告削除＋ハード解放を購入
 });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
@@ -1757,7 +1757,7 @@ function syncStageMenu(){
   $('#stageBtn').disabled = locked && !app;
   $('#stageBtn').classList.toggle('locked', locked);
   const c = list[n - 1];
-  $('#stageNote').textContent = locked ? '動く車や歩行者、柱のある立体駐車場など、実際に近い難しい駐車場の全10ステージ' : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  $('#stageNote').textContent = locked ? '動く車や歩行者、柱のある立体駐車場など、実際に近い難しい駐車場の全10ステージ' + (inApp() ? '。購入すると広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 renderBadges();
@@ -2218,11 +2218,11 @@ if (APP) {
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
   // アプリから購入状態が届く
   window.appState = s => {
-    hardOwned = !!s.hardOwned; hardPrice = s.hardPrice || ''; syncStageMenu();
-    $('#buyNoAds').hidden = s.adFree;
+    hardOwned = !!s.owned; hardPrice = s.price || ''; syncStageMenu();
+    $('#buyNoAds').hidden = hardOwned;
     $('#buyNoAds').disabled = $('#restoreBuy').disabled = s.busy;
-    $('#buyNoAds').textContent = '広告を削除' + (s.price ? `（${s.price}）` : '');
-    $('#appStoreMsg').textContent = s.busy ? '処理中…' : s.message || (s.adFree ? '広告は削除済みです' : '');
+    $('#buyNoAds').textContent = '広告を削除＋ハード解放' + (hardPrice ? `（${hardPrice}）` : '');
+    $('#appStoreMsg').textContent = s.busy ? '処理中…' : s.message || (hardOwned ? '購入済み：広告なし・ハードステージ解放' : '');
   };
   // 画面（menu / play / result / demo）が変わったらアプリに知らせる（広告を出す場面を決めるため）
   let lastScreen = '';

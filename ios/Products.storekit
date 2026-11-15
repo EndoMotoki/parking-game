@@ -8,28 +8,13 @@
       "internalID": "6C1A7E2C",
       "localizations": [
         {
-          "description": "アプリ内の広告をすべて表示しなくなります",
-          "displayName": "広告を削除",
+          "description": "広告をすべて消し、動く車や歩行者、柱のある立体駐車場など難しい10ステージを遊べるようにします",
+          "displayName": "広告を削除＋ハード解放",
           "locale": "ja"
         }
       ],
-      "productID": "io.github.endomotoki.parkinggame.noads",
-      "referenceName": "広告削除",
-      "type": "NonConsumable"
-    },
-    {
-      "displayPrice": "480",
-      "familyShareable": false,
-      "internalID": "6C1A7E2D",
-      "localizations": [
-        {
-          "description": "動く車や歩行者、柱のある立体駐車場など、難しい10ステージを遊べるようになります",
-          "displayName": "ハードステージ",
-          "locale": "ja"
-        }
-      ],
-      "productID": "io.github.endomotoki.parkinggame.hardstages",
-      "referenceName": "ハードステージ",
+      "productID": "io.github.endomotoki.parkinggame.premium",
+      "referenceName": "広告削除＋ハード解放",
       "type": "NonConsumable"
     }
   ],
