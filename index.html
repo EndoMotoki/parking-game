@@ -916,6 +916,12 @@ function addMover(o){
   movers.push(m); return m;
 }
 const moverRect = m => mkRect(m.x, m.z, m.hw, m.hl, m.h);
+// やり直したとき、出てくる場所の近くにいる車・歩行者はいったんいなくなる（重なってすぐ接触にならないように）
+function clearMoversNear(area){
+  for (const m of movers) if (m.active && overlap(moverRect(m), area)) {
+    m.active = false; m.mesh.visible = false; m.touching = false; m.v = 0; m.wait = rand(m.respawn[0], m.respawn[1]);
+  }
+}
 const activeMoverRects = () => movers.filter(m => m.active).map(moverRect);
 function moverHit(){
   st.hits++; st.freeDist = 0; st.lastHit = 'body'; st.touching = true;
@@ -1164,6 +1170,7 @@ function resetPlayer(){
   st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, dirChanges:0, segDir:0, pendDist:0, shiftT:0, hits:0, curbs:0, touching:false,
          time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[] };
   recT = 0;
+  clearMoversNear(playerRect(st, 3));
   endReplay();
   endDemo();
   game = 'play';
