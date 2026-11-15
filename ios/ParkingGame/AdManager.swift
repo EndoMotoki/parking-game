@@ -1,10 +1,17 @@
 import SwiftUI
 import GoogleMobileAds
 
-/// AdMob の広告ユニット ID。いまは Google のテスト用 ID（本番ではこの値を自分の ID に差し替える）
+/// AdMob の広告ユニット ID
+/// 開発中（Debug ビルド）は Google のテスト用 ID を使う。自分の端末で本番の広告を表示・タップすると、
+/// 不正なトラフィックとみなされて AdMob のアカウントが止められることがあるため
 enum AdUnit {
+    #if DEBUG
     static let banner = "ca-app-pub-3940256099942544/2934735716"
     static let interstitial = "ca-app-pub-3940256099942544/4411468910"
+    #else
+    static let banner = "ca-app-pub-3350766982337275/4915398171"
+    static let interstitial = "ca-app-pub-3350766982337275/9333155330"
+    #endif
 }
 
 @MainActor
