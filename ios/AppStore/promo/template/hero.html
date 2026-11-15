@@ -1,0 +1,29 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<style>
+html,body{margin:0;width:100vw;height:100vh;overflow:hidden;background:#0d1014}
+iframe{position:fixed;left:0;top:0;width:100vw;height:calc(100vh + 2 * var(--dy));border:0}
+#shade{position:fixed;inset:0;pointer-events:none;
+  background:linear-gradient(180deg, rgba(10,13,18,.55) 0%, rgba(10,13,18,.35) 45%, rgba(10,13,18,.05) 75%, rgba(10,13,18,.2) 100%)}
+#txt{position:fixed;left:var(--sx);top:var(--sy);width:var(--sw);height:var(--sh);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:#fff;text-align:center}
+h1{margin:0;font-weight:800;letter-spacing:.04em;line-height:1.2;white-space:nowrap;text-shadow:0 .4vh 2.4vh rgba(0,0,0,.6)}
+h1 em{font-style:normal;color:#f7a35c}
+p{margin:.9em 0 0;font-weight:600;color:#dfe5ec;white-space:nowrap;text-shadow:0 .3vh 1.6vh rgba(0,0,0,.7)}
+</style></head><body>
+<iframe id="f" src="/parking-game/index.html"></iframe>
+<div id="shade"></div>
+<div id="txt"><h1 id="t"></h1><p id="s"></p></div>
+<script>
+const q=new URLSearchParams(location.search);
+const [sx,sy,sw,sh]=q.get('safe').split(',').map(Number);
+const r=document.documentElement.style; r.setProperty('--sx',sx+'px'); r.setProperty('--sy',sy+'px'); r.setProperty('--sw',sw+'px'); r.setProperty('--sh',sh+'px'); r.setProperty('--dy',(+q.get('dy')||0)+'px');
+const t=document.getElementById('t'); t.innerHTML=q.get('t'); t.style.fontSize=(+q.get('ts'))+'px';
+const s=document.getElementById('s'); s.innerHTML=q.get('s'); s.style.fontSize=(+q.get('ss'))+'px';
+const f=document.getElementById('f');
+f.onload=()=>setTimeout(()=>{ const w=f.contentWindow;
+  w.eval(`try{localStorage.setItem('tutorialSeen','1')}catch(e){}; closeTutorial(); hardOwned=true; startStage('hard',${q.get('n')||19}); zoom=${q.get('zoom')||17};
+    // ゲームの操作ボタンや表示は消して、駐車場の景色だけにする
+    const st=document.createElement('style'); st.textContent='body>*:not(#main){display:none!important}'; document.head.appendChild(st);
+    level.topUp=[0,1]; setTimeout(startDemo, 300);`);
+},1500);
+</script></body></html>
