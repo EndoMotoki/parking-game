@@ -5,7 +5,7 @@ import StoreKit
 /// 1回の購入で「広告を削除」と「ハードステージ（動く車・歩行者・立体駐車場などの難しいステージ）の解放」の両方
 @MainActor
 final class Store {
-    static let productID = "io.github.endomotoki.parkinggame.premium"
+    static let productID = "com.endomotoki.parking.premium"
     private static let savedKey = "premiumOwned"
 
     private(set) var owned: Bool

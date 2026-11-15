@@ -9,8 +9,8 @@ App Store Connect に入力する内容の下書きです。文字数の上限�
 | 名前（30文字まで） | 駐車練習 |
 | 名前が使われていたときの案 | 駐車練習 - バック・縦列駐車 |
 | サブタイトル（30文字まで） | バック・縦列駐車をゲームで練習 |
-| Bundle ID | io.github.endomotoki.parkinggame |
-| SKU | parkinggame |
+| Bundle ID | com.endomotoki.parking |
+| SKU | parking |
 | プライマリ言語 | 日本語 |
 | カテゴリ | ゲーム ＞ シミュレーション（サブ：教育） |
 | 価格 | 無料（アプリ内課金あり） |
@@ -85,7 +85,7 @@ App Store Connect に入力する内容の下書きです。文字数の上限�
 |---|---|
 | 種類 | 非消耗型 |
 | 参照名 | 広告削除＋ハード解放 |
-| 製品 ID | io.github.endomotoki.parkinggame.premium |
+| 製品 ID | com.endomotoki.parking.premium |
 | 価格 | ¥360（近い価格帯を選ぶ） |
 | 表示名 | 広告を削除＋ハード解放 |
 | 説明 | 広告をすべて消し、動く車や夜の駐車場など難しい20ステージを遊べるようにします |
