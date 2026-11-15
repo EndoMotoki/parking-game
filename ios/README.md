@@ -52,5 +52,8 @@
 7. **アップロード**：Xcode で Product → Archive → Distribute App → App Store Connect（Team を選んで署名）
 8. TestFlight で実機の購入（Sandbox）を確認してから、審査に提出
 
+## 進み具合の保存（iCloud）
+ステージの解放・過去最高得点・バッジ・設定は、ゲーム（Web）の localStorage に加えて、iCloud のキー値ストレージ（`NSUbiquitousKeyValueStore`）にも保存します。起動時とほかの端末で変わったときに iCloud のデータをゲームへ送り、ゲーム側で端末の記録と合わせて、進んでいる方・高い方を残します。Capability は `Config/ParkingGame.entitlements`（iCloud の Key-value storage）。
+
 ### スクリーンショットの撮り直し
 Debug ビルドを起動引数 `-screenshots YES -js "<場面を用意するコード>"` で起動すると、広告なし・購入済みの状態で、指定した場面を自動で用意します（Debug ビルドのみ）。

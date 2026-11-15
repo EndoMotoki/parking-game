@@ -23,11 +23,33 @@ final class AppModel: ObservableObject {
     /// 初回の説明（チュートリアル）を表示中か。表示中はトラッキング許可を聞かず、バナーの場所も空けない
     @Published private var tutorialOpen = true
 
+    /// iCloud（キー値ストレージ）に保存するゲームのデータ。中身は Web 側の localStorage と同じ文字列
+    private let cloud = NSUbiquitousKeyValueStore.default
+    private static let cloudKeys: Set<String> = ["stageUnlocked", "hardUnlocked", "bestScores", "badges", "parkingSettings", "tutorialSeen"]
+    #if DEBUG
+    private let cloudOff = UserDefaults.standard.bool(forKey: "screenshots")   // スクリーンショット用の場面は保存しない
+    #else
+    private let cloudOff = false
+    #endif
+
     init() {
         store.onChange = { [weak self] in
             self?.objectWillChange.send()
             self?.pushState()
         }
+        // ほかの端末で進んだら、ゲームに知らせて合わせる
+        NotificationCenter.default.addObserver(forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: cloud, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.sendCloud() }
+        }
+        cloud.synchronize()
+    }
+
+    /// iCloud に保存してあるデータをゲームへ送る（ゲーム側で、端末の記録と合わせて進んでいる方を残す）
+    private func sendCloud() {
+        var data: [String: String] = [:]
+        if !cloudOff { for k in Self.cloudKeys { if let v = cloud.string(forKey: k) { data[k] = v } } }
+        guard let json = try? JSONSerialization.data(withJSONObject: data), let str = String(data: json, encoding: .utf8) else { return }
+        sendToWeb?("window.cloudLoad && cloudLoad(\(str))")
     }
 
     /// アプリが前面に出たとき
@@ -61,6 +83,7 @@ final class AppModel: ObservableObject {
             webReady = true
             tutorialOpen = msg["tutorial"] as? Bool ?? false
             pushState()
+            sendCloud()
             startAdsIfReady()
         case "tutorialDone":
             tutorialOpen = false
@@ -98,6 +121,11 @@ final class AppModel: ObservableObject {
             }
         case "buy":
             Task { await store.buy() }
+        case "cloudSave":
+            // ゲームの進み具合を iCloud に保存
+            guard !cloudOff, let data = msg["data"] as? [String: String] else { break }
+            for (k, v) in data where Self.cloudKeys.contains(k) { cloud.set(v, forKey: k) }
+            cloud.synchronize()
         case "restore":
             Task { await store.restore() }
         case "openURL":
