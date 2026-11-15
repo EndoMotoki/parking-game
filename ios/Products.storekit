@@ -9,12 +9,12 @@
       "localizations": [
         {
           "description": "広告をすべて消し、動く車や歩行者、柱のある立体駐車場、夜の駐車場など難しい20ステージを遊べるようにします",
-          "displayName": "広告を削除＋ハード解放",
+          "displayName": "広告削除＋ハードモード解放",
           "locale": "ja"
         }
       ],
       "productID": "com.endomotoki.parking.premium",
-      "referenceName": "広告削除＋ハード解放",
+      "referenceName": "広告削除＋ハードモード解放",
       "type": "NonConsumable"
     }
   ],
