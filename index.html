@@ -588,7 +588,9 @@ const STAGES = [
   { name:'ミニバンで出庫',       task:'exit', mode:'either',   crowd:'busy',   car:'van', width:'std',    slot:'any'  },
   { name:'ミニバンで縦列',       task:'park', mode:'parallel', crowd:'normal', car:'van', width:'std',    slot:'any'  },
   { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end'  },
-  { name:'最終：ミニバンで一番奥', task:'park', mode:'back',   crowd:'full',   car:'van', width:'narrow', slot:'end'  },
+  { name:'ミニバンで一番奥',     task:'park', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'end'  },
+  { name:'軽で狭い縦列',         task:'park', mode:'parallel', crowd:'busy',   car:'kei', width:'narrow', slot:'any'  },
+  { name:'最終：満車から出庫',   task:'exit', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'any'  },
 ];
 // ハードステージ（有料オプション）：動く車・歩行者（traffic / peds）、速い車（fast：速さの倍率）、柱（pillars）、狭い通路（aisle）、夜（night）
 const HARD_STAGES = [
@@ -629,19 +631,23 @@ let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') se
 function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
 // ---------------- バッジ（全ステージクリア） ----------------
 const BADGES = {
-  normal: { name:'ノーマル制覇', desc:'ノーマル全18ステージをクリア', c1:'#9fd2ff', c2:'#3c7fc0' },
+  normal: { name:'ノーマル制覇', desc:`ノーマル全${STAGES.length}ステージをクリア`, c1:'#9fd2ff', c2:'#3c7fc0' },
   hard:   { name:'ハード制覇',   desc:`ハード全${HARD_STAGES.length}ステージをクリア`,   c1:'#ffe08a', c2:'#c8891e' },
 };
 let badges = {}; try { badges = JSON.parse(localStorage.getItem('badges') || '{}') || {}; } catch(e) {}
-// ハードが10ステージだったころに全クリアした人：11から続けられるようにする（当時は最後をクリアしても「次」を保存していなかった）。
-// 「ハード制覇」は全20ステージのクリアに変わったので、もう一度取り直し
-if (badges.hard && HARD_STAGES.length > 10) try {
-  if ((+localStorage.getItem(UNLOCK_KEY.hard) || 1) <= 10) {
-    localStorage.setItem(UNLOCK_KEY.hard, 11);
-    unlocked.hard = sel.hard = 11;
-    delete badges.hard; localStorage.setItem('badges', JSON.stringify(badges));
-  }
-} catch(e) {}
+// ステージが増える前に全クリアした人（ハード：10 → 20、ノーマル：18 → 20）：増えたステージの最初から続けられるようにする。
+// 制覇バッジは「全ステージのクリア」なので、増えた分をクリアしたらもう一度もらえるように外す
+function migrateGrown(set, oldLen){
+  if (!badges[set] || SETS[set].length <= oldLen) return;
+  try {
+    if ((+localStorage.getItem(UNLOCK_KEY[set]) || 1) > oldLen + 1) return;   // 増えた後のステージも全部クリア済み
+    localStorage.setItem(UNLOCK_KEY[set], oldLen + 1);
+    unlocked[set] = sel[set] = oldLen + 1;
+    delete badges[set]; localStorage.setItem('badges', JSON.stringify(badges));
+  } catch(e) {}
+}
+migrateGrown('hard', 10);
+migrateGrown('normal', 18);
 function badgeSvg(set){
   const b = BADGES[set], id = 'bg' + set + (badgeSvg.n = (badgeSvg.n || 0) + 1);   // 同じ id が隠れた場所にあるとグラデーションが描かれないので毎回別の id
   return `<svg viewBox="0 0 64 64"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${b.c1}"/><stop offset="1" stop-color="${b.c2}"/></linearGradient></defs>`
