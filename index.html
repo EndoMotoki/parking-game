@@ -454,7 +454,7 @@ body.exitTask #tDone{display:none}
     </details>
 
     <div id="menuFoot">
-      <button class="linkbtn" id="tutBtn">使い方</button>
+      <button class="linkbtn" id="tutBtn">遊び方</button>
       <a class="linkbtn" id="privacyLink" href="https://endomotoki.github.io/parking-game/privacy.html" target="_blank" rel="noopener">プライバシー</a>
       <div id="appStore" hidden><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
     </div>
@@ -2407,7 +2407,7 @@ if (APP) {
       const cbad = obj(c.badges);
       for (const k in cbad) if (BADGES[k] && !badges[k]) badges[k] = cbad[k];
       localStorage.setItem('badges', JSON.stringify(badges));
-      // 入れ直した直後だけ、設定と「使い方を見た」を iCloud から戻す
+      // 入れ直した直後だけ、設定と「遊び方を見た」を iCloud から戻す
       if (freshInstall && c.parkingSettings) {
         Object.assign(S, obj(c.parkingSettings)); localStorage.setItem('parkingSettings', c.parkingSettings); syncMenu();
       }
