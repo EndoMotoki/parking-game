@@ -702,6 +702,7 @@ const hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 0.75); scene.add(hemi
 const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(20, 40, 12); scene.add(sun);
 // 夜（ハードステージ）：空を暗くし、光を弱めて青白くする（見えにくい中でミラー・モニター・センサーを頼りに）
 function setNight(on){
+  nightOn = on;
   const sky = on ? 0x141b28 : 0xa9cbe8;
   scene.background.setHex(sky); scene.fog.color.setHex(sky);
   hemi.color.setHex(on ? 0x8ea6d4 : 0xffffff); hemi.intensity = on ? 0.3 : 0.75;
@@ -738,6 +739,55 @@ function box(w, h, d, color){ return new THREE.Mesh(new THREE.BoxGeometry(w, h, 
 const wheelGeo = {};
 function getWheelGeo(r){ if (!wheelGeo[r]) { const g = new THREE.CylinderGeometry(r, r, 0.22, 16); g.rotateZ(Math.PI/2); wheelGeo[r] = g; } return wheelGeo[r]; }
 const shadowMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.32, depthWrite:false });
+// ---------------- ライト（夜のステージ） ----------------
+// 地面の明るさは、光の形の半透明な板を足し合わせて描く（本物の照明より軽く、ミラー・モニターにもそのまま映る）
+function glowTex(draw){
+  const c = document.createElement('canvas'); c.width = 64; c.height = 128;
+  draw(c.getContext('2d'), c.width, c.height);
+  return new THREE.CanvasTexture(c);
+}
+const beamTex = glowTex((g, w, h) => {
+  // 下（車側）が細く、先に行くほど広がって薄くなる光
+  g.beginPath(); g.moveTo(w/2 - 6, h); g.lineTo(2, 0); g.lineTo(w - 2, 0); g.lineTo(w/2 + 6, h); g.closePath(); g.clip();
+  const r = g.createRadialGradient(w/2, h, 2, w/2, h, h);
+  r.addColorStop(0, 'rgba(255,244,214,0.95)'); r.addColorStop(0.45, 'rgba(255,236,190,0.5)'); r.addColorStop(1, 'rgba(255,230,180,0)');
+  g.fillStyle = r; g.fillRect(0, 0, w, h);
+});
+const poolTex = glowTex((g, w, h) => {
+  g.setTransform(1, 0, 0, h/w, 0, 0);
+  const r = g.createRadialGradient(w/2, w/2, 0, w/2, w/2, w/2);
+  r.addColorStop(0, 'rgba(255,226,170,0.75)'); r.addColorStop(0.5, 'rgba(255,214,150,0.35)'); r.addColorStop(1, 'rgba(255,210,140,0)');
+  g.fillStyle = r; g.fillRect(0, 0, w, w);
+});
+const glowMat = (tex, opacity) => new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+const LAMP = {
+  head: new THREE.MeshBasicMaterial({ color:0xfff6d8 }),
+  tail: new THREE.MeshBasicMaterial({ color:0xff2a2a }),     // ブレーキ
+  tailDim: new THREE.MeshBasicMaterial({ color:0xb01c1c }),  // 夜の尾灯
+  rev: new THREE.MeshBasicMaterial({ color:0xffffff }),
+  street: new THREE.MeshBasicMaterial({ color:0xffe6b0 }),
+  beam: glowMat(beamTex, 0.85), revBeam: glowMat(beamTex, 0.45), pool: glowMat(poolTex, 0.9),
+};
+const beamGeo = new THREE.PlaneGeometry(5.5, 11), revGeo = new THREE.PlaneGeometry(3.2, 4.5), poolGeo = new THREE.PlaneGeometry(1, 1);
+let nightOn = false;
+// 車のライト：夜は前照灯と尾灯、ブレーキで尾灯が明るく、R でバックランプ
+function setCarLamps(m, { night = false, brake = false, rev = false } = {}){
+  const u = m.userData;
+  u.heads.forEach(o => o.material = night ? LAMP.head : mat(0xfff6d0));
+  u.tails.forEach(o => o.material = brake ? LAMP.tail : night ? LAMP.tailDim : mat(0xc81e1e));
+  u.revs.forEach(o => o.material = rev ? LAMP.rev : mat(0xd8d8d8));
+  u.beam.visible = night;
+  u.revBeam.visible = night && rev;
+}
+// 街灯：柱と灯り、真下の地面を照らす。(lx, lz) は照らす場所、(px, pz) は柱の位置
+function addStreetLamp(px, pz, lx, lz, r){
+  const pole = box(0.14, 5, 0.14, 0x55595f); pole.position.set(px, 2.5, pz); world.add(pole);
+  const len = Math.hypot(lx - px, lz - pz);
+  const arm = box(0.1, 0.1, len, 0x55595f); arm.position.set((px + lx)/2, 5, (pz + lz)/2); arm.rotation.y = Math.atan2(lx - px, lz - pz); world.add(arm);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.2), LAMP.street); head.position.set(lx, 4.93, lz); world.add(head);
+  const pool = new THREE.Mesh(poolGeo, LAMP.pool); pool.scale.set(r*2, r*2, 1);
+  pool.rotation.x = -Math.PI/2; pool.position.set(lx, 0.025, lz); pool.renderOrder = 1; world.add(pool);
+}
 
 // ---------------- 車モデル ----------------
 function buildCarMesh(spec, color, isPlayer){
@@ -749,10 +799,17 @@ function buildCarMesh(spec, color, isPlayer){
   const cabin = box(cw, ch, cl, 0x26313d); cabin.position.set(0, clr + bh + ch/2, spec.cabinZ); g.add(cabin);
   const roof = box(cw * 0.96, 0.05, cl * 0.82, color); roof.position.set(0, clr + bh + ch + 0.02, spec.cabinZ - cl*0.03); g.add(roof);
   // ライト
+  const heads = [], tails = [], revs = [];
   for (const sx of [-1, 1]) {
-    const hl = box(0.34, 0.12, 0.05, 0xfff6d0); hl.position.set(sx*(spec.wid/2 - 0.28), clr + bh*0.7, spec.len/2); g.add(hl);
-    const tl = box(0.30, 0.12, 0.05, 0xc81e1e); tl.position.set(sx*(spec.wid/2 - 0.26), clr + bh*0.7, -spec.len/2); g.add(tl);
+    const hl = box(0.34, 0.12, 0.05, 0xfff6d0); hl.position.set(sx*(spec.wid/2 - 0.28), clr + bh*0.7, spec.len/2); g.add(hl); heads.push(hl);
+    const tl = box(0.30, 0.12, 0.05, 0xc81e1e); tl.position.set(sx*(spec.wid/2 - 0.26), clr + bh*0.7, -spec.len/2); g.add(tl); tails.push(tl);
+    const rl = box(0.12, 0.1, 0.05, 0xd8d8d8); rl.position.set(sx*(spec.wid/2 - 0.52), clr + bh*0.7, -spec.len/2 - 0.005); g.add(rl); revs.push(rl);
   }
+  // 地面を照らす光（夜だけ表示）
+  const beam = new THREE.Mesh(beamGeo, LAMP.beam); beam.rotation.set(-Math.PI/2, 0, Math.PI);
+  beam.position.set(0, 0.03, spec.len/2 - 0.2 + 5.5); beam.visible = false; beam.renderOrder = 2; g.add(beam);
+  const revBeam = new THREE.Mesh(revGeo, LAMP.revBeam); revBeam.rotation.set(-Math.PI/2, 0, 0);
+  revBeam.position.set(0, 0.03, -spec.len/2 + 0.1 - 2.25); revBeam.visible = false; revBeam.renderOrder = 2; g.add(revBeam);
   // ナンバープレート
   const np1 = box(0.33, 0.17, 0.03, 0xf4f4f4); np1.position.set(0, clr + bh*0.35, spec.len/2 + 0.01); g.add(np1);
   const np2 = box(0.33, 0.17, 0.03, 0xf4f4f4); np2.position.set(0, clr + bh*0.45, -spec.len/2 - 0.01); g.add(np2);
@@ -773,7 +830,7 @@ function buildCarMesh(spec, color, isPlayer){
   // 影
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(spec.wid + 0.25, spec.len + 0.25), shadowMat);
   sh.rotation.x = -Math.PI/2; sh.position.y = 0.02; g.add(sh);
-  g.userData = { fw, cabin, roof, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
+  g.userData = { fw, heads, tails, revs, beam, revBeam, cabin, roof, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
   return g;
 }
 
@@ -853,6 +910,7 @@ function addMover(o){
   const spec = o.kind === 'car' ? randomParkedSpec() : null;
   const mesh = spec ? buildCarMesh(spec, pick(PARKED_COLORS), false) : makePedMesh();
   mesh.visible = false; world.add(mesh);
+  if (spec) setCarLamps(mesh, { night: nightOn });
   const m = { ...o, mesh, hw: spec ? spec.wid/2 : 0.28, hl: spec ? spec.len/2 : 0.28, v: 0, x: 0, z: o.lane.z,
               h: o.lane.dir > 0 ? Math.PI/2 : -Math.PI/2, wait: o.delay || 0, active: false, touching: false, stuck: 0, t: 0 };
   movers.push(m); return m;
@@ -966,6 +1024,10 @@ function buildBay(){
   }
   addBuilding(xMin - 14, rand(-5, 5), rand(8, 12), rand(14, 22));
   addBuilding(xMax + (deadEnd ? 8 : 14), rand(-5, 5), rand(8, 12), rand(14, 22));
+  // 夜は、奥の壁の外に街灯（駐車枠の奥側を照らす）と、通路の照明
+  if (X.night) {
+    for (let x = xMin + 6; x < xMax - 3; x += 11) for (const s of [1, -1]) addStreetLamp(x + (s > 0 ? 0 : 5.5), s*(wallZ + 0.5), x + (s > 0 ? 0 : 5.5), s*(wallZ - 1.6), 5.2);
+  }
   // 通路を走る車（左側通行：+x 向きは手前側）と、枠の前を歩く人
   const lx0 = xMin + 1.5, lx1 = xMax - 1.5, lane = Math.min(1.4, aisle/2 - 1.1);
   for (let k = 0; k < (X.traffic || 0); k++) for (const dir of [1, -1])
@@ -1034,6 +1096,7 @@ function buildParallel(){
   for (let x = -endX + 4; x < endX; x += rand(9, 14)) { addTree(x, curbZ - 2.3); }
   // 対向車線を走る車（ハード）
   const X = stageX();
+  if (X.night) for (let x = -endX + 8; x < endX - 4; x += 13) addStreetLamp(x, curbZ - 1.3, x, curbZ + 1.2, 5.8);
   for (let k = 0; k < (X.traffic || 0); k++)
     addMover({ kind:'car', lane:{ z: 3.5, dir: -1, x0: -endX + 4, x1: endX - 4 }, vmax: 6*(X.fast || 1), acc: 2, brake: 5, gap: 2.5, delay: rand(1, 6) + k*5, respawn:[2, 8] });
   const base = { type:'parallel', target: mkRect(tx, tz, (laneEdge - curbZ)/2, Lsp/2, Math.PI/2), tx, tz, curbZ, reqH: Math.PI/2 };
@@ -1510,6 +1573,7 @@ function physics(dt){
   if (fwd && !st.prevFwd) st.fwdFromStop = Math.abs(st.v) < 0.03;
   if (back && !st.prevBack) st.backFromStop = Math.abs(st.v) < 0.03;
   st.prevFwd = fwd; st.prevBack = back;
+  st.braking = !!brake;
   if (brake) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
   else if (fwd) {
     if (st.v < -0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
@@ -2124,6 +2188,7 @@ function updateScene(dt){
   const fx = Math.sin(st.h), fz = Math.cos(st.h);
   const cx = st.x + fx*C.cOff, cz = st.z + fz*C.cOff;
   player.position.set(cx, 0, cz); player.rotation.y = st.h;
+  setCarLamps(player, { night: nightOn, brake: game === 'play' && !!st.braking, rev: st.gear === 'R' });
   player.userData.fw.forEach(w => w.rotation.y = st.delta);
   // ミラー角度（リバース連動）
   const tgtPitch = (S.mirrorTilt && st.gear === 'R') ? -0.32 : -0.08;
