@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- AdMob のアプリ ID。いまは Google のテスト用 ID。公開前に自分の ID に差し替える -->
+	<!-- AdMob のアプリ ID（本番）。広告ユニット ID は AdManager.swift（Debug ビルドはテスト用） -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-3350766982337275~1261213296</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

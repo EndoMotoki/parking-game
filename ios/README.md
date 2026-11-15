@@ -20,7 +20,7 @@
 
 ### 広告のテスト
 
-- いまはすべて Google のテスト用 ID です（「Test mode」と表示されます）。
+- Debug ビルドは Google のテスト用の広告ユニット ID（「Test mode」と表示）、Release ビルド（TestFlight・App Store）は本番の ID を使います。自分の端末で本番の広告をタップしないように。
 - 起動引数 `-adTestOnStart` を付けると、スタートのたびに全画面広告が出ます（Debug ビルドのみ）。
 
 ## 広告の出し方
@@ -46,9 +46,7 @@
 1. **App Store Connect でアプリを作る**：名前・Bundle ID・SKU は `AppStore/listing.md` のとおり
 2. **有料アプリの契約**（ビジネス → 契約）：口座・税の情報を登録（アプリ内課金に必要）
 3. **アプリ内課金を作る**：非消耗型 `com.endomotoki.parking.premium`、¥360
-4. **AdMob** でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える（このあと頼んでもらえれば差し替えます）
-   - `Config/Info.plist` の `GADApplicationIdentifier`
-   - `ParkingGame/AdManager.swift` の `AdUnit.banner` と `AdUnit.interstitial`
+4. [x] **AdMob** の本番 ID（`Config/Info.plist` の `GADApplicationIdentifier`、`ParkingGame/AdManager.swift` の `AdUnit`）。公開後、AdMob でアプリを App Store のアプリとつなぐ
 5. **配信地域**：日本のみがおすすめ。EU・英国にも出すなら、AdMob の同意メッセージ（UMP）を設定して、アプリに同意画面を入れる
 6. **掲載情報を入力**：説明文・キーワード・スクリーンショット・プライバシー・年齢制限（`AppStore/listing.md`）
 7. **アップロード**：Xcode で Product → Archive → Distribute App → App Store Connect（Team を選んで署名）
