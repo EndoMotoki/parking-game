@@ -132,6 +132,8 @@ details.more[open] summary::before{content:"− "}
 #stageTitle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 0;background:#0f1114;border-radius:8px}
 #stageTitle b{font-size:17px}
 #stageTitle span{font-size:13px;color:#c4cad1;margin-top:2px}
+#stageTitle #stageBest{font-size:12px;color:#f2c14e;margin-top:3px}
+#stageTitle #stageBest.none{color:var(--muted)}
 #stagePrev, #stageNext{width:40px;border:0;border-radius:8px;background:#1f2329;color:var(--muted);font-size:12px;cursor:pointer}
 #stagePrev:disabled, #stageNext:disabled{opacity:.25;cursor:default}
 #resumeBtn{margin:0 0 8px}
@@ -173,6 +175,8 @@ details.more[open] summary::before{content:"− "}
 .rankrow{display:flex;align-items:baseline;gap:14px;margin:4px 0 12px}
 #rank{font-size:56px;font-weight:700;line-height:1}
 #score{font-size:18px;color:var(--text)}
+#resBest{font-size:12px;color:var(--muted);margin:-2px 0 6px}
+#resBest.new{color:#f2c14e;font-weight:700}
 #breakdown{width:100%;border-collapse:collapse;font-size:13px}
 #breakdown td{padding:5px 0;border-bottom:1px solid var(--line);color:#c4cad1}
 #breakdown td:nth-child(2){text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
@@ -385,7 +389,7 @@ body.exitTask #tDone{display:none}
     <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="free">自由練習</button></div>
     <div id="stagePane">
       <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード</button></div>
-      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
+      <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span><span id="stageBest"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <p id="stageNote" class="keys"></p>
       <button class="bigbtn" id="stageBtn">スタート</button>
     </div>
@@ -513,6 +517,7 @@ body.exitTask #tDone{display:none}
       <div id="resBadge" hidden></div>
       <div id="resTitle">駐車完了</div>
       <div class="rankrow"><span id="rank">S</span><span id="score">100 点</span></div>
+      <div id="resBest" hidden></div>
       <table id="breakdown"></table>
       <div id="tips"></div>
     </div>
@@ -641,6 +646,19 @@ function badgeSvg(set){
 function renderBadges(){
   const el = document.getElementById('badgeRow'); if (!el) return;
   el.innerHTML = ['normal', 'hard'].filter(k => badges[k]).map(k => `<span class="badgeChip" title="${BADGES[k].desc}">${badgeSvg(k)}${BADGES[k].name}</span>`).join('');
+}
+// ステージごとの過去最高得点 { normal:{ 1:95, ... }, hard:{ ... } }
+let bestScores = { normal:{}, hard:{} };
+try { const b = JSON.parse(localStorage.getItem('bestScores')); if (b) bestScores = { normal:{ ...b.normal }, hard:{ ...b.hard } }; } catch(e) {}
+const bestOf = (set, n) => bestScores[set][n];
+// 記録して、前の最高得点を返す（初めてなら undefined）
+function recordBest(set, n, score){
+  const prev = bestScores[set][n];
+  if (prev === undefined || score > prev) {
+    bestScores[set][n] = score;
+    try { localStorage.setItem('bestScores', JSON.stringify(bestScores)); } catch(e) {}
+  }
+  return prev;
 }
 function earnBadge(set){
   const first = !badges[set];
@@ -1636,6 +1654,15 @@ function finishResult(score, rows, tips, title){
     $('#resBadge').hidden = false;
     if (first) { setTimeout(() => { tone(784, 0.15, 0.08); setTimeout(() => tone(1047, 0.3, 0.08), 160); }, 450); rumble(120, 0.4); }
   }
+  // 過去最高得点
+  $('#resBest').hidden = !stageNo;
+  if (stageNo) {
+    const prev = recordBest(stageSet, stageNo, score);
+    const isNew = prev !== undefined && score > prev;
+    $('#resBest').textContent = isNew ? `自己ベスト更新！（これまで ${prev}点）` : prev === undefined ? '' : `過去最高得点：${prev}点`;
+    $('#resBest').hidden = prev === undefined;
+    $('#resBest').classList.toggle('new', isNew);
+  }
   const hasNext = stageCleared && stageNo < list.length;
   $('#rNext').hidden = !hasNext;
   $('#rRetry').classList.toggle('primary', !hasNext);
@@ -1768,6 +1795,10 @@ function syncStageMenu(){
   document.querySelectorAll('#stageSets button').forEach(b => b.classList.toggle('on', b.dataset.set === selSet));
   $('#stageNum').textContent = `${stageLabel(selSet, n)} / ${list.length}`;
   $('#stageName').textContent = list[n - 1].name;
+  const best = bestOf(selSet, n);
+  $('#stageBest').textContent = best === undefined ? '過去最高得点：まだ記録なし' : `過去最高得点：${best}点`;
+  $('#stageBest').classList.toggle('none', best === undefined);
+  $('#stageBest').hidden = locked;
   $('#stagePrev').disabled = locked || n <= 1;
   $('#stageNext').disabled = locked || n >= unlocked[selSet];
   const app = inApp();
