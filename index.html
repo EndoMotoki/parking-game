@@ -2368,6 +2368,55 @@ if (APP) {
   // 画面（menu / play / result / demo）が変わったらアプリに知らせる（広告を出す場面を決めるため）
   let lastScreen = '';
   setInterval(() => { if (game !== lastScreen) { lastScreen = game; appPost({ type:'screen', name: game }); } }, 200);
+  // ---- iCloud に進み具合を保存（アプリを入れ直しても、機種変更しても続きから） ----
+  // 端末の localStorage と iCloud のデータを合わせて、進んでいる方・高い方を残す
+  const CLOUD_KEYS = ['stageUnlocked', 'hardUnlocked', 'bestScores', 'badges', 'parkingSettings', 'tutorialSeen'];
+  const freshInstall = (() => { try { return !localStorage.getItem('tutorialSeen'); } catch(e) { return false; } })();
+  let cloudReady = false, cloudTimer = 0;
+  const cloudPush = () => {
+    if (!cloudReady) return;   // iCloud のデータを読み込む前に、空のデータで上書きしないように
+    clearTimeout(cloudTimer);
+    cloudTimer = setTimeout(() => {
+      const data = {};
+      for (const k of CLOUD_KEYS) { try { const v = localStorage.getItem(k); if (v !== null) data[k] = v; } catch(e) {} }
+      appPost({ type:'cloudSave', data });
+    }, 400);
+  };
+  // 保存のたびに iCloud にも送る
+  const setItem0 = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(k, v){ setItem0.call(this, k, v); if (this === localStorage && CLOUD_KEYS.includes(k)) cloudPush(); };
+  window.cloudLoad = c => {
+    const obj = v => { try { return JSON.parse(v) || {}; } catch(e) { return {}; } };
+    try {
+      // 解放したステージ：大きい方
+      for (const set of ['normal', 'hard']) {
+        const k = UNLOCK_KEY[set], cv = +c[k] || 0;
+        if (cv > (+localStorage.getItem(k) || 0)) {
+          localStorage.setItem(k, cv);
+          const n = Math.max(1, Math.min(SETS[set].length, cv));
+          if (n > unlocked[set]) { unlocked[set] = n; sel[set] = n; }
+        }
+      }
+      // 過去最高得点：ステージごとに高い方
+      const cb = obj(c.bestScores);
+      for (const set of ['normal', 'hard']) for (const n in (cb[set] || {})) {
+        const v = +cb[set][n]; if (v >= 0 && !(bestScores[set][n] >= v)) bestScores[set][n] = v;
+      }
+      localStorage.setItem('bestScores', JSON.stringify(bestScores));
+      // バッジ：どちらかで取っていれば取ったことに
+      const cbad = obj(c.badges);
+      for (const k in cbad) if (BADGES[k] && !badges[k]) badges[k] = cbad[k];
+      localStorage.setItem('badges', JSON.stringify(badges));
+      // 入れ直した直後だけ、設定と「使い方を見た」を iCloud から戻す
+      if (freshInstall && c.parkingSettings) {
+        Object.assign(S, obj(c.parkingSettings)); localStorage.setItem('parkingSettings', c.parkingSettings); syncMenu();
+      }
+      if (freshInstall && c.tutorialSeen) closeTutorial();
+    } catch(e) {}
+    syncStageMenu(); renderBadges();
+    cloudReady = true;
+    cloudPush();
+  };
   appPost({ type:'ready', tutorial: !(() => { try { return localStorage.getItem('tutorialSeen'); } catch(e) { return true; } })() });
 }
 
