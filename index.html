@@ -585,7 +585,7 @@ const STAGES = [
   { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end'  },
   { name:'最終：ミニバンで一番奥', task:'park', mode:'back',   crowd:'full',   car:'van', width:'narrow', slot:'end'  },
 ];
-// ハードステージ（有料オプション）：動く車・歩行者（traffic / peds）、柱（pillars）、狭い通路（aisle）
+// ハードステージ（有料オプション）：動く車・歩行者（traffic / peds）、速い車（fast：速さの倍率）、柱（pillars）、狭い通路（aisle）、夜（night）
 const HARD_STAGES = [
   { name:'通路を車が通る',         task:'park', mode:'either',   crowd:'normal', car:'std', width:'std', slot:'any', x:{ traffic:1 } },
   { name:'歩行者に注意',           task:'park', mode:'back',     crowd:'normal', car:'std', width:'std', slot:'any', x:{ peds:2 } },
@@ -596,7 +596,17 @@ const HARD_STAGES = [
   { name:'交通量のある道路へ出る', task:'exit', mode:'parallel', crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:2 } },
   { name:'混んだ通路から出庫',     task:'exit', mode:'back',     crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:1, peds:2 } },
   { name:'ミニバンで立体駐車場',   task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std', slot:'any', x:{ pillars:true, aisle:5.5, peds:1 } },
-  { name:'最難関',                 task:'park', mode:'back',     crowd:'full',   car:'van', width:'std', slot:'any', x:{ pillars:true, aisle:5.2, traffic:1, peds:2 } },
+  { name:'前半の最難関',           task:'park', mode:'back',     crowd:'full',   car:'van', width:'std', slot:'any', x:{ pillars:true, aisle:5.2, traffic:1, peds:2 } },
+  { name:'夜の駐車場',             task:'park', mode:'back',     crowd:'normal', car:'std', width:'std', slot:'any', x:{ night:true, traffic:1 } },
+  { name:'前から入れて車をかわす', task:'park', mode:'front',    crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:1, peds:1 } },
+  { name:'軽で柱の間に',           task:'park', mode:'back',     crowd:'busy',   car:'kei', width:'narrow', slot:'any', x:{ pillars:true, aisle:5.2 } },
+  { name:'立体駐車場から出庫',     task:'exit', mode:'back',     crowd:'busy',   car:'std', width:'std', slot:'any', x:{ pillars:true, aisle:5.5, peds:1 } },
+  { name:'速い車が通る通路',       task:'park', mode:'either',   crowd:'busy',   car:'std', width:'std', slot:'any', x:{ traffic:1, fast:1.5 } },
+  { name:'柱のある一番奥',         task:'park', mode:'back',     crowd:'normal', car:'std', width:'std', slot:'end', x:{ pillars:true, aisle:5.8 } },
+  { name:'夜の道路で縦列',         task:'park', mode:'parallel', crowd:'busy',   car:'std', width:'std', slot:'any', x:{ night:true, traffic:2 } },
+  { name:'狭い枠と歩行者',         task:'park', mode:'back',     crowd:'busy',   car:'std', width:'narrow', slot:'any', x:{ peds:3 } },
+  { name:'夜の立体駐車場',         task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std', slot:'any', x:{ night:true, pillars:true, aisle:5.5, traffic:1, peds:1 } },
+  { name:'最終：最難関',           task:'park', mode:'back',     crowd:'full',   car:'van', width:'std', slot:'end', x:{ night:true, pillars:true, aisle:5.5, traffic:1, fast:1.3, peds:2 } },
 ];
 const SETS = { normal: STAGES, hard: HARD_STAGES };
 const STAGE_KEYS = ['slot','task','mode','crowd','car','width'];
@@ -615,7 +625,7 @@ function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && wi
 // ---------------- バッジ（全ステージクリア） ----------------
 const BADGES = {
   normal: { name:'ノーマル制覇', desc:'ノーマル全18ステージをクリア', c1:'#9fd2ff', c2:'#3c7fc0' },
-  hard:   { name:'ハード制覇',   desc:'ハード全10ステージをクリア',   c1:'#ffe08a', c2:'#c8891e' },
+  hard:   { name:'ハード制覇',   desc:`ハード全${HARD_STAGES.length}ステージをクリア`,   c1:'#ffe08a', c2:'#c8891e' },
 };
 let badges = {}; try { badges = JSON.parse(localStorage.getItem('badges') || '{}') || {}; } catch(e) {}
 function badgeSvg(set){
@@ -661,8 +671,15 @@ function saveSettings(){
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xa9cbe8);
 scene.fog = new THREE.Fog(0xa9cbe8, 70, 180);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.75));
+const hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 0.75); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(20, 40, 12); scene.add(sun);
+// 夜（ハードステージ）：空を暗くし、光を弱めて青白くする（見えにくい中でミラー・モニター・センサーを頼りに）
+function setNight(on){
+  const sky = on ? 0x141b28 : 0xa9cbe8;
+  scene.background.setHex(sky); scene.fog.color.setHex(sky);
+  hemi.color.setHex(on ? 0x8ea6d4 : 0xffffff); hemi.intensity = on ? 0.3 : 0.75;
+  sun.color.setHex(on ? 0xffe2b0 : 0xffffff); sun.intensity = on ? 0.16 : 0.75;
+}
 
 const mainR = new THREE.WebGLRenderer({ canvas: $('#main'), antialias: true });
 mainR.setPixelRatio(Math.min(devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.5 : 2));
@@ -925,7 +942,7 @@ function buildBay(){
   // 通路を走る車（左側通行：+x 向きは手前側）と、枠の前を歩く人
   const lx0 = xMin + 1.5, lx1 = xMax - 1.5, lane = Math.min(1.4, aisle/2 - 1.1);
   for (let k = 0; k < (X.traffic || 0); k++) for (const dir of [1, -1])
-    addMover({ kind:'car', lane:{ z: -dir*lane, dir, x0: lx0, x1: lx1 }, vmax: 2.8, acc: 1.2, brake: 4, gap: 1.6, delay: rand(1, 9) + k*7, respawn:[3, 10] });
+    addMover({ kind:'car', lane:{ z: -dir*lane, dir, x0: lx0, x1: lx1 }, vmax: 2.8*(X.fast || 1), acc: 1.2, brake: 4, gap: 1.6, delay: rand(1, 9) + k*7, respawn:[3, 10] });
   for (let k = 0; k < (X.peds || 0); k++) {
     const dir = Math.random() < 0.5 ? 1 : -1, row = Math.random() < 0.5 ? 1 : -1;
     addMover({ kind:'ped', lane:{ z: row*(aisle/2 - 0.45), dir, x0: lx0, x1: lx1 }, vmax: 1.1, acc: 2, brake: 6, gap: 0.5, delay: rand(0, 6) + k*4, respawn:[2, 7] });
@@ -991,7 +1008,7 @@ function buildParallel(){
   // 対向車線を走る車（ハード）
   const X = stageX();
   for (let k = 0; k < (X.traffic || 0); k++)
-    addMover({ kind:'car', lane:{ z: 3.5, dir: -1, x0: -endX + 4, x1: endX - 4 }, vmax: 6, acc: 2, brake: 5, gap: 2.5, delay: rand(1, 6) + k*5, respawn:[2, 8] });
+    addMover({ kind:'car', lane:{ z: 3.5, dir: -1, x0: -endX + 4, x1: endX - 4 }, vmax: 6*(X.fast || 1), acc: 2, brake: 5, gap: 2.5, delay: rand(1, 6) + k*5, respawn:[2, 8] });
   const base = { type:'parallel', target: mkRect(tx, tz, (laneEdge - curbZ)/2, Lsp/2, Math.PI/2), tx, tz, curbZ, reqH: Math.PI/2 };
   if (S.task === 'exit') {
     const cz = curbZ + 0.3 + spec.wid/2;
@@ -1065,6 +1082,7 @@ function resetPlayer(){
 }
 function buildLevel(){
   clearWorld();
+  setNight(!!stageX().night);
   C = CARS[S.car];
   setAvmFrustum();
   level = S.mode === 'parallel' ? buildParallel() : buildBay();
@@ -1757,7 +1775,7 @@ function syncStageMenu(){
   $('#stageBtn').disabled = locked && !app;
   $('#stageBtn').classList.toggle('locked', locked);
   const c = list[n - 1];
-  $('#stageNote').textContent = locked ? '動く車や歩行者、柱のある立体駐車場など、実際に近い難しい駐車場の全10ステージ' + (inApp() ? '。購入すると広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (inApp() ? '。購入すると広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 renderBadges();
