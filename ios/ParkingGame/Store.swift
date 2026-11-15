@@ -2,36 +2,22 @@ import Foundation
 import StoreKit
 
 /// 買い切りの課金アイテム（StoreKit 2）
-/// - 広告を削除
-/// - ハードステージ（動く車・歩行者・立体駐車場などの難しいステージ）
+/// 1回の購入で「広告を削除」と「ハードステージ（動く車・歩行者・立体駐車場などの難しいステージ）の解放」の両方
 @MainActor
 final class Store {
-    enum Item: String, CaseIterable {
-        case noAds = "io.github.endomotoki.parkinggame.noads"
-        case hard = "io.github.endomotoki.parkinggame.hardstages"
+    static let productID = "io.github.endomotoki.parkinggame.premium"
+    private static let savedKey = "premiumOwned"
 
-        /// Web 側から届く名前（"noads" / "hard"）
-        init?(webName: String?) {
-            switch webName {
-            case nil, "noads": self = .noAds
-            case "hard": self = .hard
-            default: return nil
-            }
-        }
-        var savedKey: String { self == .noAds ? "adFree" : "hardOwned" }
-        var thanks: String { self == .noAds ? "購入ありがとうございます。広告を削除しました" : "購入ありがとうございます。ハードステージを解放しました" }
-    }
-
-    private(set) var owned: Set<Item>
-    private(set) var prices: [Item: String] = [:]
+    private(set) var owned: Bool
+    private(set) var price: String?
     private(set) var busy = false
     private(set) var message: String?
     var onChange: (() -> Void)?
 
-    var adFree: Bool { owned.contains(.noAds) }
-    var hardOwned: Bool { owned.contains(.hard) }
+    var adFree: Bool { owned }
+    var hardOwned: Bool { owned }
 
-    private var products: [Item: Product] = [:]
+    private var product: Product?
     private var updates: Task<Void, Never>?
 
     #if DEBUG
@@ -42,9 +28,9 @@ final class Store {
     #endif
 
     init() {
-        owned = Set(Item.allCases.filter { UserDefaults.standard.bool(forKey: $0.savedKey) })
+        owned = UserDefaults.standard.bool(forKey: Self.savedKey)
         if mock {
-            prices = [.noAds: "¥360", .hard: "¥480"]
+            price = "¥360"
             return
         }
         updates = Task { [weak self] in
@@ -60,15 +46,14 @@ final class Store {
     }
 
     private func changed() {
-        for item in Item.allCases { UserDefaults.standard.set(owned.contains(item), forKey: item.savedKey) }
+        UserDefaults.standard.set(owned, forKey: Self.savedKey)
         onChange?()
     }
 
     func loadProducts() async {
         do {
-            for p in try await Product.products(for: Item.allCases.map(\.rawValue)) {
-                if let item = Item(rawValue: p.id) { products[item] = p; prices[item] = p.displayPrice }
-            }
+            product = try await Product.products(for: [Self.productID]).first
+            price = product?.displayPrice
         } catch {
             print("product load failed:", error)
         }
@@ -77,25 +62,25 @@ final class Store {
 
     /// 購入済みかどうかを App Store の記録から確かめる
     func refreshEntitlements() async {
-        var now = Set<Item>()
+        var now = false
         for await result in Transaction.currentEntitlements {
-            if case .verified(let t) = result, t.revocationDate == nil, let item = Item(rawValue: t.productID) { now.insert(item) }
+            if case .verified(let t) = result, t.revocationDate == nil, t.productID == Self.productID { now = true }
         }
         owned = now
         changed()
     }
 
-    func buy(_ item: Item) async {
-        guard !busy, !owned.contains(item) else { return }
+    func buy() async {
+        guard !busy, !owned else { return }
         message = nil
         if mock {
             busy = true; changed()
             try? await Task.sleep(nanoseconds: 600_000_000)
-            busy = false; owned.insert(item); message = "購入しました（テスト）"; changed()
+            busy = false; owned = true; message = "購入しました（テスト）"; changed()
             return
         }
-        if products[item] == nil { await loadProducts() }
-        guard let product = products[item] else { message = "App Store に接続できませんでした"; changed(); return }
+        if product == nil { await loadProducts() }
+        guard let product else { message = "App Store に接続できませんでした"; changed(); return }
         busy = true; changed()
         defer { busy = false; changed() }
         do {
@@ -103,8 +88,8 @@ final class Store {
             case .success(let verification):
                 if case .verified(let t) = verification {
                     await t.finish()
-                    owned.insert(item)
-                    message = item.thanks
+                    owned = true
+                    message = "購入ありがとうございます。広告を削除し、ハードステージを解放しました"
                 } else {
                     message = "購入を確認できませんでした"
                 }
@@ -129,7 +114,7 @@ final class Store {
             await refreshEntitlements()
         }
         busy = false
-        message = owned.isEmpty ? "復元できる購入はありませんでした" : "購入を復元しました"
+        message = owned ? "購入を復元しました" : "復元できる購入はありませんでした"
         changed()
     }
 }

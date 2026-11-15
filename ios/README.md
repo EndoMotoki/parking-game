@@ -1,7 +1,7 @@
 # 駐車練習 iOS アプリ
 
 ウェブ版のゲーム（リポジトリ直下の `index.html`）を iPhone / iPad アプリにしたものです。
-広告（Google AdMob）と、買い切りの「広告を削除」（アプリ内課金）が付いています。
+広告（Google AdMob）と、買い切りの「広告を削除＋ハード解放」（アプリ内課金、1回の購入で広告削除とハードステージの両方）が付いています。
 
 - ゲーム本体はビルドのたびに `../index.html` からコピーされます。ウェブ版を直せばアプリにも反映されます。
 - three.js はアプリに同梱しているので（`ParkingGame/three.min.js`）、オフラインでも遊べます。
@@ -27,15 +27,14 @@
 
 - バナー：メニューと結果画面の下にだけ表示。運転中は出しません。
 - 全画面広告：結果画面から次の練習に進むとき、3回に1回。
-- 「広告を削除」を購入すると、どちらも出なくなります。
+- 「広告を削除＋ハード解放」を購入すると、どちらも出なくなります。
 
 ## 公開までにやること
 
 1. Apple Developer Program に登録する
 2. Bundle ID（いまは `io.github.endomotoki.parkinggame`）を決めて、プロジェクトの設定と `Store.swift` の商品 ID、`Products.storekit` を合わせる
-3. App Store Connect でアプリを作り、非消耗型の課金アイテムを2つ登録する。有料アプリの契約・口座・税の情報も登録する
-   - 広告を削除：`<Bundle ID>.noads`
-   - ハードステージ：`<Bundle ID>.hardstages`（`Store.swift` の `Store.Item` と `Products.storekit` も合わせる）
+3. App Store Connect でアプリを作り、非消耗型の課金アイテムを1つ登録する（価格は ¥360 前後の価格帯）。有料アプリの契約・口座・税の情報も登録する
+   - 広告を削除＋ハード解放：`<Bundle ID>.premium`（`Store.swift` の `Store.productID` と `Products.storekit` も合わせる）
 4. AdMob でアプリと広告ユニット（バナー・インタースティシャル）を作り、次の ID を差し替える
    - `Config/Info.plist` の `GADApplicationIdentifier`
    - `ParkingGame/AdManager.swift` の `AdUnit.banner` と `AdUnit.interstitial`

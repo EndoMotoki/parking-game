@@ -94,7 +94,7 @@ final class AppModel: ObservableObject {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }
         case "buy":
-            if let item = Store.Item(webName: msg["product"] as? String) { Task { await store.buy(item) } }
+            Task { await store.buy() }
         case "restore":
             Task { await store.restore() }
         default:
@@ -104,10 +104,8 @@ final class AppModel: ObservableObject {
 
     func pushState() {
         let s: [String: Any] = [
-            "adFree": store.adFree,
-            "price": store.prices[.noAds] ?? "",
-            "hardOwned": store.hardOwned,
-            "hardPrice": store.prices[.hard] ?? "",
+            "owned": store.owned,
+            "price": store.price ?? "",
             "busy": store.busy,
             "message": store.message ?? "",
         ]
