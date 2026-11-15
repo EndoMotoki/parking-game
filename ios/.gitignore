@@ -2,3 +2,6 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
+
+# Firebase の設定（API キー入り）。公開リポジトリには入れず、手元に置く
+ParkingGame/GoogleService-Info.plist

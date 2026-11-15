@@ -629,6 +629,8 @@ for (const k of ['normal', 'hard']) {
 let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') selSet = 'hard'; } catch(e) {}
 // iOS アプリの中で開いているか（APP より前に使えるように関数で）
 function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
+// iOS アプリ版：遊び方の傾向を Firebase Analytics に記録（ウェブ版では何もしない）
+function track(name, params){ if (inApp()) try { window.webkit.messageHandlers.app.postMessage({ type:'event', name, params: params || {} }); } catch(e) {} }
 // ---------------- バッジ（全ステージクリア） ----------------
 const BADGES = {
   normal: { name:'ノーマル制覇', desc:`ノーマル全${STAGES.length}ステージをクリア`, c1:'#9fd2ff', c2:'#3c7fc0' },
@@ -1738,6 +1740,7 @@ function finishResult(score, rows, tips, title){
   $('#resBadge').hidden = true;
   if (stageCleared && stageNo === list.length) {
     const first = earnBadge(stageSet), b = BADGES[stageSet];
+    if (first) track('badge_earned', { set:stageSet });
     $('#resBadge').innerHTML = `${badgeSvg(stageSet)}<div><b>${first ? 'バッジ獲得！' : ''}${b.name}</b><span>${b.desc}</span></div>`;
     $('#resBadge').hidden = false;
     if (first) { setTimeout(() => { tone(784, 0.15, 0.08); setTimeout(() => tone(1047, 0.3, 0.08), 160); }, 450); rumble(120, 0.4); }
@@ -1751,6 +1754,9 @@ function finishResult(score, rows, tips, title){
     $('#resBest').hidden = prev === undefined;
     $('#resBest').classList.toggle('new', isNew);
   }
+  track(stageNo ? 'stage_result' : 'free_result', stageNo
+    ? { set:stageSet, stage:stageNo, score, cleared: stageCleared ? 1 : 0, hits: st.hits }
+    : { score, mode:S.mode, task:S.task, hits: st.hits });
   const hasNext = stageCleared && stageNo < list.length;
   $('#rNext').hidden = !hasNext;
   $('#rRetry').classList.toggle('primary', !hasNext);
@@ -1838,10 +1844,11 @@ document.querySelectorAll('.opt[data-key]').forEach(o => {
 });
 for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
 // 自由練習（メニューで選んだ設定）で始める
-function startGame(){ leaveStage(); beginPlay(); }
+function startGame(){ leaveStage(); beginPlay(); track('free_start', { mode:S.mode, task:S.task, car:S.car }); }
 function startStage(set, n){
   if (set === 'hard' && !hardOwned) return;
   enterStage(set, n); sel[set] = n; beginPlay();
+  track('stage_start', { set, stage:n });
 }
 function beginPlay(){
   ensureAudio();
@@ -1868,7 +1875,7 @@ const hardLocked = () => selSet === 'hard' && !hardOwned;
 const menuStart = () => menuTab === 'free' ? startGame() : !hardLocked() && startStage(selSet, sel[selSet]);
 $('#stageBtn').addEventListener('click', () => {
   if (!hardLocked()) return startStage(selSet, sel[selSet]);
-  if (inApp()) appPost({ type:'buy' });   // アプリ版：広告削除＋ハード解放を購入
+  if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
 });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
@@ -2110,6 +2117,7 @@ function planDemoM(MARGIN){
 }
 let demo = null;
 function startDemo(){
+  track('demo_start', stageNo ? { set:stageSet, stage:stageNo } : {});
   resetPlayer();
   game = 'demo';
   setTimeout(() => {
@@ -2352,7 +2360,7 @@ const APP = window.webkit && window.webkit.messageHandlers && window.webkit.mess
 function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
 if (APP) {
   $('#appStore').hidden = false;
-  $('#buyNoAds').addEventListener('click', () => appPost({ type:'buy' }));
+  $('#buyNoAds').addEventListener('click', () => { track('purchase_tap', { from:'menu' }); appPost({ type:'buy' }); });
   $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
   // リンクはアプリの外（Safari）で開く

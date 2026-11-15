@@ -94,6 +94,7 @@ final class Store {
                     await t.finish()
                     owned = true
                     message = "購入ありがとうございます。広告を削除し、ハードステージを解放しました"
+                    Telemetry.log("premium_purchased")
                 } else {
                     message = "購入を確認できませんでした"
                 }
