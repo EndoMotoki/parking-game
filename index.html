@@ -1867,6 +1867,13 @@ function setMenuTab(t){
   $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free';
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   try { localStorage.setItem('menuTab', t); } catch(e) {}
+  syncBuyBtn();
+}
+// 金色の購入ボタン：アプリ版で未購入のときだけ。ハードの鍵付きステージを選んでいる間は「スタート」の場所が同じ購入ボタンになるので隠す
+let storeReady = false;
+function syncBuyBtn(){
+  const b = $('#buyNoAds'); if (!b) return;
+  b.hidden = !storeReady || hardOwned || (menuTab === 'stage' && hardLocked());
 }
 document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
 setMenuTab(menuTab);
@@ -1897,11 +1904,13 @@ function syncStageMenu(){
   $('#stagePrev').disabled = locked || n <= 1;
   $('#stageNext').disabled = locked || n >= unlocked[selSet];
   const app = inApp();
-  $('#stageBtn').textContent = !locked ? 'スタート' : app ? `ハードステージを解放${hardPrice ? `（${hardPrice}）` : ''}` : 'ハードステージはアプリ版で解放できます';
+  // ハードの鍵付きステージを選んでいる間は、このボタンが購入ボタンになる（下の金色のボタンは同じ購入なので隠す）
+  $('#stageBtn').textContent = !locked ? 'スタート' : app ? `★ 広告を削除＋ハードステージ解放${hardPrice ? `（${hardPrice}）` : ''}` : 'ハードステージはアプリ版で解放できます';
+  syncBuyBtn();
   $('#stageBtn').disabled = locked && !app;
   $('#stageBtn').classList.toggle('locked', locked);
   const c = list[n - 1];
-  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (inApp() ? '。購入すると広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。一度買えばずっと遊べて、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 renderBadges();
@@ -2368,7 +2377,7 @@ if (APP) {
   // アプリから購入状態が届く
   window.appState = s => {
     hardOwned = !!s.owned; hardPrice = s.price || ''; syncStageMenu();
-    $('#buyNoAds').hidden = hardOwned;
+    storeReady = true; syncBuyBtn();
     $('#buyNoAds').disabled = $('#restoreBuy').disabled = s.busy;
     $('#buyPrice').textContent = hardPrice;
     $('#appStoreMsg').textContent = s.busy ? '処理中…' : s.message || (hardOwned ? '購入済み：広告なし・ハードステージ解放' : '');
