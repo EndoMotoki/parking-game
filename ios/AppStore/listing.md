@@ -127,7 +127,28 @@ Firebase Analytics で記録している出来事：`stage_start`・`stage_resul
 
 ## 審査メモ（App Review への連絡事項）
 
-ログインは不要です。
-ハードステージは、メニューの「ステージ」→「ハード」で表示される購入ボタン、またはスタートの下の「★ 広告を削除＋ハードステージ解放」から購入できます（非消耗型、Sandbox でテスト可能）。購入後は広告が表示されなくなります。
-「購入を復元」はメニュー下部にあります。
-広告は Google AdMob を使用し、メニューと結果画面のバナー、練習3回ごとの全画面広告のみです。運転中は表示しません。
+2026-11 の初回審査で「Guideline 2.1 - Information Needed」となり、次の6点を求められた。下の英文を App Store Connect の「App Review に関する情報」→「メモ」にそのまま貼り、実機の画面収録を「添付ファイル」に付ける。
+
+```
+1. Screen recording
+A screen recording captured on a physical iPhone running the latest iOS is attached. It starts with launching the app and shows: the first-launch tutorial, the tracking permission prompt, starting Normal stage 1, driving and parking, the result screen with the score, the stage list with the locked Hard stages, the in-app purchase ("Remove ads + unlock Hard stages", non-consumable), and playing a Hard stage after the purchase. The app has no account registration, no login and no user-generated content.
+
+2. Purpose and target audience
+"駐車練習" (Parking Practice) is a 3D parking simulator for people in Japan who are learning to drive or who are not confident about parking: driving-school students, new drivers and people who rarely drive. Users practice reverse parking, parallel parking, pulling out of tight spaces, multi-story car parks, night parking and avoiding moving cars and pedestrians, using an on-screen steering wheel, mirrors and parking sensors. Each attempt is scored (how straight the car is in the space, the number of turns; hitting a car or wall gives 0 points), and a replay shows the car's path, so users can repeat difficult situations safely before trying them in a real car.
+
+3. How to use the app
+No login, account or sample file is needed. Launch the app, read the short tutorial (it can be reopened from "遊び方" at the bottom of the menu), choose a stage from "ステージ" and tap "スタート". Turn the steering wheel with a finger and hold "前進" (forward) or "後退" (reverse) to move. Stop inside the blue space and tap "完了" (done) to get a score. The 20 Normal stages are free and unlock one by one when the previous stage is cleared. The 20 Hard stages and ad removal are unlocked by the non-consumable in-app purchase "com.endomotoki.parking.premium", available from the gold button under "スタート" or from the Hard tab of the stage list. "購入を復元" (Restore Purchases) is in the menu. The purchase can be tested in the sandbox environment.
+
+4. External services
+- Apple StoreKit: the in-app purchase
+- Apple iCloud key-value storage: syncs stage progress, best scores and settings between the user's devices (no account in the app)
+- Google AdMob (Google Mobile Ads SDK): banner ads on the menu and result screens, and an interstitial ad after every third practice. No ads are shown while driving, and none after the purchase.
+- Google Firebase Analytics and Crashlytics: anonymous usage statistics and crash reports
+The game itself (3D graphics via the bundled three.js library) runs entirely on the device and works offline. No AI services, data providers or authentication services are used.
+
+5. Regional differences
+The app is distributed in Japan only and the interface is in Japanese. Its features and content are the same for all users; there are no regional differences.
+
+6. Regulated industry / third-party material
+The app is not in a regulated industry. It is a practice game and not an official driving-school or licensing tool. All stages, 3D models and graphics are original and made for this app; the only third-party code is open-source libraries (three.js, MIT license) and the Google and Firebase SDKs.
+```
