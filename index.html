@@ -455,6 +455,7 @@ body.exitTask #tDone{display:none}
 
     <div id="menuFoot">
       <button class="linkbtn" id="tutBtn">遊び方</button>
+      <a class="linkbtn" id="iosLink" href="https://apps.apple.com/jp/app/id6835015784" target="_blank" rel="noopener">iPhone / iPad アプリ</a>
       <a class="linkbtn" id="privacyLink" href="https://endomotoki.github.io/parking-game/privacy.html" target="_blank" rel="noopener">プライバシー</a>
       <div id="appStore" hidden><button class="linkbtn" id="restoreBuy">購入を復元</button><div id="appStoreMsg"></div></div>
     </div>
@@ -628,6 +629,7 @@ for (const k of ['normal', 'hard']) {
 }
 let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') selSet = 'hard'; } catch(e) {}
 // iOS アプリの中で開いているか（APP より前に使えるように関数で）
+const APP_STORE_URL = 'https://apps.apple.com/jp/app/id6835015784';
 function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
 // iOS アプリ版：遊び方の傾向を Firebase Analytics に記録（ウェブ版では何もしない）
 function track(name, params){ if (inApp()) try { window.webkit.messageHandlers.app.postMessage({ type:'event', name, params: params || {} }); } catch(e) {} }
@@ -1883,6 +1885,7 @@ const menuStart = () => menuTab === 'free' ? startGame() : !hardLocked() && star
 $('#stageBtn').addEventListener('click', () => {
   if (!hardLocked()) return startStage(selSet, sel[selSet]);
   if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
+  else window.open(APP_STORE_URL, '_blank', 'noopener');                                  // ウェブ版：App Store のアプリのページへ
 });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
@@ -1905,9 +1908,8 @@ function syncStageMenu(){
   $('#stageNext').disabled = locked || n >= unlocked[selSet];
   const app = inApp();
   // ハードの鍵付きステージを選んでいる間は、このボタンが購入ボタンになる（下の金色のボタンは同じ購入なので隠す）
-  $('#stageBtn').textContent = !locked ? 'スタート' : app ? `★ 広告を削除＋ハードステージ解放${hardPrice ? `（${hardPrice}）` : ''}` : 'ハードステージはアプリ版で解放できます';
+  $('#stageBtn').textContent = !locked ? 'スタート' : app ? `★ 広告を削除＋ハードステージ解放${hardPrice ? `（${hardPrice}）` : ''}` : 'ハードステージは iPhone / iPad アプリで遊べます（App Store）';
   syncBuyBtn();
-  $('#stageBtn').disabled = locked && !app;
   $('#stageBtn').classList.toggle('locked', locked);
   const c = list[n - 1];
   $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。一度買えばずっと遊べて、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
@@ -2369,6 +2371,7 @@ const APP = window.webkit && window.webkit.messageHandlers && window.webkit.mess
 function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
 if (APP) {
   $('#appStore').hidden = false;
+  $('#iosLink').remove();   // アプリの中では App Store へのリンクは出さない
   $('#buyNoAds').addEventListener('click', () => { track('purchase_tap', { from:'menu' }); appPost({ type:'buy' }); });
   $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
