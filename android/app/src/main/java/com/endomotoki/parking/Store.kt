@@ -79,8 +79,8 @@ class Store(private val activity: Activity, private val onChange: () -> Unit) : 
         val params = QueryProductDetailsParams.newBuilder().setProductList(listOf(
             QueryProductDetailsParams.Product.newBuilder().setProductId(PRODUCT_ID).setProductType(BillingClient.ProductType.INAPP).build()
         )).build()
-        client.queryProductDetailsAsync(params) { _, list ->
-            product = list.firstOrNull()
+        client.queryProductDetailsAsync(params) { _, result ->
+            product = result.productDetailsList.firstOrNull()
             price = product?.oneTimePurchaseOfferDetails?.formattedPrice
             changed()
             then?.let { main.post(it) }
