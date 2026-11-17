@@ -12,10 +12,10 @@ if (hasFirebase) {
     apply(plugin = "com.google.firebase.crashlytics")
 }
 
-// AdMob の本番 ID（AdMob で Android アプリを登録したら書き換える）。Debug ビルドは Google のテスト用 ID を使う
-val admobAppId = "TODO"
-val admobBanner = "TODO"
-val admobInterstitial = "TODO"
+// AdMob の本番 ID（Android アプリ）。Debug ビルドは Google のテスト用 ID を使う
+val admobAppId = "ca-app-pub-3350766982337275~4315249481"
+val admobBanner = "ca-app-pub-3350766982337275/7056303752"
+val admobInterstitial = "ca-app-pub-3350766982337275/2294931660"
 
 // アップロード鍵（Play Console に出すための署名）。keystore.properties と鍵ファイルはリポジトリに入れない
 val keystoreProps = Properties().apply {
