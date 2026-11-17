@@ -483,7 +483,7 @@ body.exitTask #tDone{display:none}
         <svg viewBox="0 0 150 110"><path d="M30 38 Q75 26 120 38 Q140 44 138 74 Q136 92 120 90 Q108 88 100 74 L50 74 Q42 88 30 90 Q14 92 12 74 Q10 44 30 38Z" fill="#2e3238"/><circle cx="44" cy="54" r="9" fill="#555c66"/><circle cx="94" cy="66" r="7" fill="#555c66"/><circle cx="110" cy="48" r="4" fill="#ef5b5b"/><circle cx="120" cy="56" r="4" fill="#5ccf8a"/><circle cx="100" cy="56" r="4" fill="#4ea1ff"/><circle cx="110" cy="64" r="4" fill="#f2c14e"/><rect x="40" y="24" width="18" height="6" rx="3" fill="#555c66"/><rect x="92" y="24" width="18" height="6" rx="3" fill="#555c66"/></svg>
         <h2>プロコンでも遊べます</h2>
         <p>プロコン（Switch Pro コントローラー）などのゲームパッドが使えます。</p>
-        <p>つなぎ方：プロコン上部の小さなボタンをランプが点滅するまで長押しし、iPhone の「設定」→「Bluetooth」で「Pro Controller」を選びます。つないだらどれかボタンを押してください。</p>
+        <p>つなぎ方：プロコン上部の小さなボタンをランプが点滅するまで長押しし、スマホやタブレットの「設定」→「Bluetooth」で「Pro Controller」を選びます。つないだらどれかボタンを押してください。</p>
         <p class="small">ZR 前進　ZL 後退　B ブレーキ　L スティック ハンドル　L 微速　A 完了　＋ メニュー</p>
       </section>
       <section class="tut-slide">
@@ -628,11 +628,14 @@ for (const k of ['normal', 'hard']) {
   sel[k] = unlocked[k];
 }
 let selSet = 'normal'; try { if (localStorage.getItem('stageSet') === 'hard') selSet = 'hard'; } catch(e) {}
-// iOS アプリの中で開いているか（APP より前に使えるように関数で）
+// アプリ（iOS / Android）の中で開いているか。アプリへの連絡口はどちらも postMessage(オブジェクト) の形にそろえる
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/id6835015784';
-function inApp(){ return !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app); }
-// iOS アプリ版：遊び方の傾向を Firebase Analytics に記録（ウェブ版では何もしない）
-function track(name, params){ if (inApp()) try { window.webkit.messageHandlers.app.postMessage({ type:'event', name, params: params || {} }); } catch(e) {} }
+const IS_ANDROID_APP = !!(window.AndroidApp && window.AndroidApp.postMessage);
+const APP_BRIDGE = (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app)
+  || (IS_ANDROID_APP ? { postMessage: m => window.AndroidApp.postMessage(JSON.stringify(m)) } : null);
+function inApp(){ return !!APP_BRIDGE; }
+// アプリ版：遊び方の傾向を Firebase Analytics に記録（ウェブ版では何もしない）
+function track(name, params){ if (APP_BRIDGE) try { APP_BRIDGE.postMessage({ type:'event', name, params: params || {} }); } catch(e) {} }
 // ---------------- バッジ（全ステージクリア） ----------------
 const BADGES = {
   normal: { name:'ノーマル制覇', desc:`ノーマル全${STAGES.length}ステージをクリア`, c1:'#9fd2ff', c2:'#3c7fc0' },
@@ -1466,9 +1469,9 @@ function pollGamepad(dt){
   pad.prev = gp.buttons.map((_, i) => b(i));
 }
 function rumble(ms = 180, strong = 0.8){
-  // スマホも振動させる：iOS アプリ版はアプリに頼む（iPhone のブラウザは振動できない）、Android のブラウザは vibrate
+  // スマホも振動させる：アプリ版はアプリに頼む（iPhone のブラウザは振動できない）、Android のブラウザは vibrate
   if (typeof appPost === 'function') appPost({ type:'haptic', strong });
-  if (IS_TOUCH && navigator.vibrate) { try { navigator.vibrate(ms); } catch(e) {} }
+  if (IS_TOUCH && navigator.vibrate && !IS_ANDROID_APP) { try { navigator.vibrate(ms); } catch(e) {} }
   const gp = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(g => g && g.connected);
   try { gp?.vibrationActuator?.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: strong }); } catch(e) {}
 }
@@ -2366,16 +2369,16 @@ resize();
 buildLevel();
 game = 'menu';
 
-// ---------------- iOS アプリ版との連携（ウェブ版では何もしない） ----------------
-const APP = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.app;
+// ---------------- アプリ版（iOS / Android）との連携（ウェブ版では何もしない） ----------------
+const APP = APP_BRIDGE;
 function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
 if (APP) {
   $('#appStore').hidden = false;
-  $('#iosLink').remove();   // アプリの中では App Store へのリンクは出さない
+  $('#iosLink').remove();   // アプリの中ではストアへのリンクは出さない
   $('#buyNoAds').addEventListener('click', () => { track('purchase_tap', { from:'menu' }); appPost({ type:'buy' }); });
   $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
-  // リンクはアプリの外（Safari）で開く
+  // リンクはアプリの外（ブラウザ）で開く
   $('#privacyLink').addEventListener('click', e => { e.preventDefault(); appPost({ type:'openURL', url: e.currentTarget.href }); });
   // アプリから購入状態が届く
   window.appState = s => {
@@ -2388,8 +2391,8 @@ if (APP) {
   // 画面（menu / play / result / demo）が変わったらアプリに知らせる（広告を出す場面を決めるため）
   let lastScreen = '';
   setInterval(() => { if (game !== lastScreen) { lastScreen = game; appPost({ type:'screen', name: game }); } }, 200);
-  // ---- iCloud に進み具合を保存（アプリを入れ直しても、機種変更しても続きから） ----
-  // 端末の localStorage と iCloud のデータを合わせて、進んでいる方・高い方を残す
+  // ---- 進み具合をアプリにも保存（iOS は iCloud、Android は端末のバックアップ。入れ直しても、機種変更しても続きから） ----
+  // 端末の localStorage とアプリに保存したデータを合わせて、進んでいる方・高い方を残す
   const CLOUD_KEYS = ['stageUnlocked', 'hardUnlocked', 'bestScores', 'badges', 'parkingSettings', 'tutorialSeen'];
   const freshInstall = (() => { try { return !localStorage.getItem('tutorialSeen'); } catch(e) { return false; } })();
   let cloudReady = false, cloudTimer = 0;
