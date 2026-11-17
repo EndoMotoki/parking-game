@@ -48,7 +48,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - Debug ビルドでは集計しない
 
 ## 公開までにやること
-1. **AdMob**：Android アプリを登録して、アプリ ID・バナー・インタースティシャルの広告ユニットを作り、`app/build.gradle.kts` の `admobAppId`・`admobBanner`・`admobInterstitial` に書く（`TODO` のままだと Release ビルドが止まる）。app-ads.txt は今のもの（`https://endomotoki.github.io/app-ads.txt`）をそのまま使える
+1. [x] **AdMob**：本番のアプリ ID・広告ユニット ID は `app/build.gradle.kts` の `admobAppId`・`admobBanner`・`admobInterstitial`。app-ads.txt は今のもの（`https://endomotoki.github.io/app-ads.txt`）をそのまま使える。公開後、AdMob でアプリを Google Play のアプリとつなぐ
 2. **Firebase**：上のとおり `google-services.json` を置く
 3. **アップロード鍵**：Android Studio の Build → Generate Signed Bundle で鍵（`.jks`）を作り、`android/keystore.properties` に書く（どちらもリポジトリに入れない。鍵とパスワードはなくさないように保管）
    ```
