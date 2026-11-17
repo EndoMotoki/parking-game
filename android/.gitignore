@@ -1,0 +1,13 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+# Firebase の設定。公開リポジトリには入れない
+app/google-services.json
+# 署名の鍵（アップロード鍵）。リポジトリには絶対に入れない
+*.jks
+*.keystore
+keystore.properties

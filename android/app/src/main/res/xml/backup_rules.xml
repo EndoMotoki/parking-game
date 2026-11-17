@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 以前：進み具合（cloud.xml）だけを Google のバックアップに入れる。購入状態は Google Play から読み直す -->
+<full-backup-content>
+    <include domain="sharedpref" path="cloud.xml" />
+</full-backup-content>

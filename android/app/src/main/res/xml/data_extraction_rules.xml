@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 以降：進み具合（cloud.xml）だけをバックアップと機種変更の引き継ぎに入れる -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="cloud.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="cloud.xml" />
+    </device-transfer>
+</data-extraction-rules>
