@@ -11,3 +11,5 @@ app/google-services.json
 *.jks
 *.keystore
 keystore.properties
+# Android Studio で作った署名付きの .aab（Play Console にアップロードするもの）
+app/release/
