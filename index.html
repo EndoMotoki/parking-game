@@ -412,7 +412,7 @@ body.exitTask #tDone{display:none}
     </div>
     <div id="chalPane" hidden>
       <div id="chalBest"><b>挑戦モード</b><span id="chalRec"></span></div>
-      <p id="chalNote" class="keys">ランダムな駐車場で、1番から少しずつ難しくなります（混み具合・枠の狭さ・車の大きさ）。60点以上・接触なしでクリアすると次へ進み、失敗したらそこで終わり。何番まで行けるか挑戦しましょう。挑戦中は「やり直し」「お手本」は使えません。</p>
+      <p id="chalNote" class="keys">ランダムな駐車場で、1番から少しずつ難しくなります（混み具合・枠の狭さ・車の大きさ）。60点以上でクリアすると次へ進み、ぶつけたり60点未満だったりしたらそこで終わり。何番まで行けるか挑戦しましょう。挑戦中は「やり直し」「お手本」は使えません。</p>
       <button class="bigbtn" id="chalBtn">挑戦スタート</button>
     </div>
     <div id="freePane" hidden>
@@ -1687,7 +1687,7 @@ function physics(dt){
     const fresh = !(st.freeDist < 0.3) || hit !== st.lastHit;
     if (!st.touching && fresh && (hit === 'body' || hit === 'curb')) { st.freeDist = 0; st.lastHit = hit; }
     if (!st.touching && fresh) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); if (inChallenge()) challengeCrash(); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1792,6 +1792,13 @@ function showResult(ev){
   if (kiri > Math.max(1, free)) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
   return finishResult(score, rows, tips, '駐車完了');
 }
+// 挑戦モード：ぶつけた時点で終わり（その場で結果画面）
+function challengeCrash(){
+  if (game !== 'play') return;
+  game = 'result';
+  st.v = 0;
+  finishResult(0, [['接触', `${st.hits} 回（0点）`, 100]], ['当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。'], '');
+}
 function finishResult(score, rows, tips, title){
   score = Math.max(0, Math.round(score));
   stageCleared = false;
@@ -1801,7 +1808,7 @@ function finishResult(score, rows, tips, title){
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     chalPrev = chalBest();
     if (stageCleared && stageNo > chalPrev) { bestScores.challenge.best = stageNo; try { localStorage.setItem('bestScores', JSON.stringify(bestScores)); } catch(e) {} }
-    title = stageCleared ? `挑戦 ${stageNo} クリア！` : `挑戦おわり：${stageNo - 1} 番までクリア`;
+    title = stageCleared ? `挑戦 ${stageNo} クリア！` : stageNo > 1 ? `挑戦おわり：${stageNo - 1} 番までクリア` : '挑戦おわり：1 番をクリアできませんでした';
   } else if (stageNo) {
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     if (stageCleared) {
