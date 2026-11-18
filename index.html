@@ -122,9 +122,11 @@ details.more{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 details.more summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none}
 details.more summary::before{content:"+ "}
 details.more[open] summary::before{content:"− "}
-.checks{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:13px;margin-top:8px;color:#c4cad1}
-.checks label{display:flex;align-items:center;gap:6px;cursor:pointer}
-.checks input{accent-color:var(--accent);width:15px;height:15px}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-top:10px;color:#dfe3e8}
+/* チェック項目は、行全体を押しやすいボタンのように */
+.checks label{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:10px;background:#1f2329;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.checks label:has(input:checked){background:#2a2318;color:#fff}
+.checks input{accent-color:var(--accent);width:22px;height:22px;flex:none;margin:0}
 .bigbtn{display:block;width:100%;margin-top:16px;padding:11px;font-size:15px;font-weight:600;border:0;border-radius:8px;
   background:var(--accent);color:#111;cursor:pointer}
 .subbtn{display:block;width:100%;margin-top:8px;padding:9px;font-size:14px;font-weight:600;border:1px solid #3a414a;border-radius:8px;
@@ -137,8 +139,9 @@ details.more[open] summary::before{content:"− "}
 #stagePane[hidden], #freePane[hidden], #setPane[hidden]{display:none}
 #freeAnim{display:block;width:100%;height:150px;margin-top:10px;border-radius:10px;background:#3a3f46}
 #setPane details.more:first-child{margin-top:0;border-top:0;padding-top:0}
-#setPane summary{pointer-events:none;font-size:13px;font-weight:600;color:var(--text)}
-#setPane summary::before{content:none !important}
+#setPane details:first-child>summary{pointer-events:none;font-size:13px;font-weight:600;color:var(--text)}
+#setPane details:first-child>summary::before{content:none !important}
+#setPane details+details>summary{font-size:13px;font-weight:600;color:var(--text);padding:6px 0}
 #stageSets{margin-bottom:10px}
 #stageSets button[data-set="hard"].on{color:#ffb07a}
 /* 未購入のときはハードに鍵マークと「未解放」のラベル（購入が必要と分かるように） */
@@ -175,6 +178,8 @@ details.more[open] summary::before{content:"− "}
 #demoPick .btnrow{flex-wrap:wrap}
 #sStage{color:var(--accent);font-weight:600}
 #sStage[hidden]{display:none}
+/* 今のコースの止め方（バック・前向きなど）。挑戦モードでも後から確かめられるように常に表示 */
+#sMode{font-weight:700;color:#cfe3ff;background:rgba(47,168,255,.22);border-radius:6px;padding:1px 7px}
 /* ---- はじめての人向けの説明（スワイプで進む） ---- */
 #tutorial{z-index:30;background:rgba(8,9,11,.82)}
 .tut{position:relative;background:#16191d;border-radius:16px;width:min(440px,100%);max-height:100%;overflow:hidden;display:flex;flex-direction:column;touch-action:none}
@@ -401,6 +406,7 @@ body.exitTask #tDone{display:none}
 
 <div class="hud" id="stats">
   <span id="sStage" hidden></span>
+  <span id="sMode"></span>
   <span id="sTime">0.0</span>
   <span>接触 <b id="sHit">0</b></span>
   <span class="curbStat">縁石 <b id="sCurb">0</b></span>
@@ -1361,6 +1367,9 @@ function buildLevel(){
     world.add(arrow);
   }
   $('#sStage').hidden = !stageNo; $('#sStage').textContent = stageNo ? stageLabel(stageSet, stageNo) : '';
+  $('#sMode').textContent = level.task === 'exit'
+    ? { back:'バックで出庫', front:'前進で出庫', either:'出庫', parallel:'縦列から出庫' }[S.mode]
+    : { back:'バックで駐車', front:'前向きで駐車', either:'どちらでもOK', parallel:'縦列駐車' }[S.mode];
   document.body.classList.toggle('parallel', S.mode === 'parallel');
   document.body.classList.toggle('exitTask', level.task === 'exit');
   zoom = level.task === 'exit' ? 22 : 17;   // 出庫は出口まで見えるように少し引きで開始
@@ -2030,7 +2039,7 @@ const freeAnim = (() => {
   // 角の丸い四角（iOS 15 の Safari は ctx.roundRect がないので自前で）
   const rrect = (x, y, w, h, r) => { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
   // 1つの動き方（入庫・出庫 × バック・前向き・縦列）
-  function plan(task, mode, crowd, car, width, alt){
+  function plan(task, mode, crowd, car, width, alt, slot){
     const [L] = CAR[car], cx = 160;
     if (mode === 'either') mode = alt ? 'front' : 'back';
     if (mode === 'parallel') {
@@ -2041,14 +2050,25 @@ const freeAnim = (() => {
       return { type:'par', segs, gap, crowd, car };
     }
     const sw = { wide:36, std:32, narrow:28 }[width], y = 34, lane = 102;
+    // 「一番奥」「奥から2番目」：目標の枠の右側が行き止まり（壁）。右へは行けないので、壁の手前で向きを変える
+    const dead = slot === 'end' || slot === 'end2', wallX = dead ? cx + (slot === 'end' ? 0.5 : 1.5)*sw + 14 : 0;
     let segs;
+    if (dead) {
+      if (task === 'park') segs = mode === 'back'
+        ? [line([-40, lane], [cx - 50, lane], 1), curve([[cx - 50, lane], [cx - 10, lane], [cx + 10, lane + 10], [cx + 22, 128]], 1), curve([[cx + 22, 128], [cx + 10, 110], [cx, 80], [cx, y]], -1)]
+        : [line([-40, lane], [cx - 62, lane], 1), curve([[cx - 62, lane], [cx - 18, lane], [cx, 86], [cx, y]], 1)];
+      else segs = mode === 'back'
+        ? [curve([[cx, y], [cx, 84], [cx + 8, lane], [cx + 20, lane]], -1), line([cx + 20, lane], [-50, lane], 1)]
+        : [curve([[cx, y], [cx, 84], [cx - 16, lane], [cx - 62, lane]], 1), line([cx - 62, lane], [-50, lane], 1)];
+      return { type:'bay', segs, sw, crowd, car, dead, wallX, task };
+    }
     if (task === 'park') segs = mode === 'back'
       ? [line([-40, lane], [cx + 58, lane], 1), curve([[cx + 58, lane], [cx + 16, lane], [cx, 80], [cx, y]], -1)]
       : [line([-40, lane], [cx - 62, lane], 1), curve([[cx - 62, lane], [cx - 18, lane], [cx, 86], [cx, y]], 1)];
     else segs = mode === 'back'      // バックで出る：前向きに止めた車を後ろへ出して、前進で去る
       ? [curve([[cx, y], [cx, 84], [cx - 16, lane], [cx - 62, lane]], -1), line([cx - 62, lane], [W + 50, lane], 1)]
       : [curve([[cx, y], [cx, 84], [cx + 16, lane], [cx + 62, lane]], 1), line([cx + 62, lane], [W + 50, lane], 1)];
-    return { type:'bay', segs, sw, crowd, car };
+    return { type:'bay', segs, sw, crowd, car, dead:false, task };
   }
   function pose(sg, t){
     const x = cub(sg.p, t, 0), y = cub(sg.p, t, 1);
@@ -2074,8 +2094,11 @@ const freeAnim = (() => {
       const cx = 160, sw = pl.sw;
       ctx.fillStyle = '#6c717a'; ctx.fillRect(0, 0, W, 6);                    // 奥の壁
       ctx.fillStyle = 'rgba(47,168,255,.35)'; ctx.fillRect(cx - sw/2, 6, sw, 54);   // 目標の枠
-      for (let i = -5; i <= 5; i++) { const x = cx + (i + 0.5)*sw; ctx.beginPath(); ctx.moveTo(x, 6); ctx.lineTo(x, 60); ctx.stroke(); }
-      for (let i = -4; i <= 4; i++) if (i && occ(pl.crowd, i)) drawCar(cx + i*sw, 34, (i % 2 ? -1 : 1)*Math.PI/2, 40, 18, i % 3 ? '#9aa3ad' : '#d6dade', false);
+      const maxI = pl.dead ? Math.round((pl.wallX - 14 - cx)/sw - 0.5) : 5;
+      for (let i = -5; i <= maxI; i++) { const x = cx + (i + 0.5)*sw; ctx.beginPath(); ctx.moveTo(x, 6); ctx.lineTo(x, 60); ctx.stroke(); }
+      // 行き止まり：入庫は目標の枠のほかはすべて埋まっている
+      for (let i = -4; i <= 4; i++) if (i && (!pl.dead || i <= maxI) && (pl.dead && pl.task === 'park' ? true : occ(pl.crowd, i))) drawCar(cx + i*sw, 34, (i % 2 ? -1 : 1)*Math.PI/2, 40, 18, i % 3 ? '#9aa3ad' : '#d6dade', false);
+      if (pl.dead) { ctx.fillStyle = '#6c717a'; ctx.fillRect(pl.wallX, 0, W - pl.wallX, H); }
     } else {
       const cx = 160, gap = pl.gap, sp = L + gap;
       ctx.fillStyle = '#8f949b'; ctx.fillRect(0, 0, W, 34);                   // 歩道
@@ -2104,18 +2127,13 @@ const freeAnim = (() => {
     scene(P);
     const [x, y, h] = pose(S, wait > 0 && seg === 0 && segT === 0 ? 0 : segT);
     drawCar(x, y, h, L, Wd, '#f08a3c', true);
-    // いまの動き（前進／バック）
-    ctx.font = '600 12px sans-serif'; ctx.textBaseline = 'top';
-    const lbl = S.d > 0 ? '前進' : 'バック';
-    ctx.fillStyle = 'rgba(15,17,20,.7)'; rrect(W - 58, H - 26, 50, 20, 6); ctx.fill();
-    ctx.fillStyle = S.d > 0 ? '#e8eaed' : '#ffa45c'; ctx.textAlign = 'center'; ctx.fillText(lbl, W - 33, H - 22);
     raf = requestAnimationFrame(frame);
   }
   function sync(){
-    const k = [S.task, S.mode, S.crowd, S.car, S.width].join();
+    const k = [S.task, S.mode, S.crowd, S.car, S.width, S.slot].join();
     if (k !== key) {
       key = k; cyc = 0; seg = 0; segT = 0; wait = 0.6;
-      plans = (S.mode === 'either' ? [0, 1] : [0]).map(a => plan(S.task, S.mode, S.crowd, S.car, S.width, a));
+      plans = (S.mode === 'either' ? [0, 1] : [0]).map(a => plan(S.task, S.mode, S.crowd, S.car, S.width, a, S.slot));
       plans.forEach(pl => pl.segs.forEach(sg => sg.len = lenOf(sg)));
     }
     const dpr = Math.min(3, window.devicePixelRatio || 1), cw = cv.clientWidth || 300;
@@ -2166,7 +2184,7 @@ let menuTab = 'stage';
 function setMenuTab(t){
   menuTab = t;
   $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free'; $('#chalPane').hidden = t !== 'challenge'; $('#setPane').hidden = t !== 'settings';
-  if (t === 'settings') document.querySelectorAll('#setPane details').forEach(d => d.open = true);
+  if (t === 'settings') $('#setPane details').open = true;   // 詳細設定は開いたまま、操作方法はたたんでおく
   $('#menuFoot').hidden = t !== 'settings';   // 遊び方・プライバシー・購入の復元は設定タブだけに
   syncChalMenu();
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
