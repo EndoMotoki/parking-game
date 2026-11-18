@@ -144,7 +144,7 @@ details.more[open] summary::before{content:"− "}
 #chalBest b{display:block;font-size:22px}
 #chalBest span{display:block;font-size:12px;color:#f2c14e;margin-top:3px}
 #chalBest span.none{color:var(--muted)}
-#chalNote{margin:8px 0 0;text-align:center;font-size:12px}
+#chalNote{margin:8px 0 0;text-align:center;font-size:12px;line-height:1.8}
 #chalResume[hidden]{display:none}
 #chalResume:not([hidden])+#chalBtn{background:#2a2f36;color:var(--text);margin-top:8px}
 #demoPick{z-index:30;background:rgba(8,9,11,.45)}
@@ -414,7 +414,7 @@ body.exitTask #tDone{display:none}
     </div>
     <div id="chalPane" hidden>
       <div id="chalBest"><b>挑戦モード</b><span id="chalRec"></span></div>
-      <p id="chalNote" class="keys">ランダムな駐車場で、1番から少しずつ難しくなります（混み具合・枠の狭さ・車の大きさ）。60点以上でクリアすると次へ進み、ぶつけたり60点未満だったりしたらそこで終わり。何番まで行けるか挑戦しましょう。挑戦中は「やり直し」「お手本」は使えません。クリアしたあとでメニューに戻っても、あとで続きから再開できます。</p>
+      <p id="chalNote" class="keys">ランダムな駐車場で、だんだん難しくなります<br>60点以上でクリア → 次へ<br>ぶつける・60点未満 → 終わり<br>やり直し・お手本は使えません／途中でやめても続きから</p>
       <button class="bigbtn" id="chalResume" hidden>続きから</button>
       <button class="bigbtn" id="chalBtn">挑戦スタート</button>
     </div>
