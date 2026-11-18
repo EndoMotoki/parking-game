@@ -92,7 +92,15 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 #menuHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 #menuHead h1{margin:0}
 body.inApp #menuHead h1{display:none}
-body.inApp #menuHead:not(:has(.badgeChip)){display:none}
+body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
+#badgeRow{flex:1}
+/* メニュー右上：購入でできること（広告なし＋ハード）を知らせるラベル。押すと購入 */
+#promoChip{display:flex;align-items:center;gap:7px;flex:none;margin-left:auto;padding:6px 12px 6px 9px;border:1px solid #8a6a2c;border-radius:999px;background:#3a2c14;color:#ffd27a;font:inherit;cursor:pointer;text-align:left}
+#promoChip[hidden]{display:none}
+#promoChip svg{width:18px;height:18px;fill:#ffd27a;flex:none}
+#promoChip span{display:flex;flex-direction:column;line-height:1.25}
+#promoChip b{font-size:12px}
+#promoChip small{font-size:10px;color:#e8c98a}
 #badgeRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .badgeChip{display:flex;align-items:center;gap:4px;padding:3px 9px 3px 4px;border-radius:999px;background:#1f2329;font-size:11px;font-weight:600}
 .badgeChip svg{width:22px;height:22px}
@@ -272,7 +280,7 @@ details.more[open] summary::before{content:"− "}
   #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
   #menuHead h1{display:none}
-  #menuHead:not(:has(.badgeChip)){display:none}
+  #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
   #menuFoot{order:98;margin:14px 0 10px}
   /* 下のタブ：アイコン付きで大きく。選んでいるタブはオレンジの面で目立たせる */
   #menuTabs{order:99;position:sticky;bottom:0;margin:auto -16px 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:6px;background:#22262c;border-top:1px solid #343940;border-radius:0}
@@ -467,7 +475,7 @@ body.exitTask #tDone{display:none}
 
 <div class="overlay" id="menu">
   <div class="card">
-    <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div></div>
+    <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div><button id="promoChip" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg><span><b>広告なし＋ハード20ステージ</b><small id="promoPrice">買い切り</small></span></button></div>
 
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4h11l-2.5 4.5L17 13H6"/></svg><span>ステージ</span></button><button data-tab="challenge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>挑戦</span></button><button data-tab="free"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M3.3 10.5H10M14 10.5h6.7M12 14v7"/></svg><span>自由練習</span></button><button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button></div>
@@ -2048,7 +2056,8 @@ function setMenuTab(t){
 let storeReady = false;
 function syncBuyBtn(){
   const b = $('#buyNoAds'); if (!b) return;
-  b.hidden = !storeReady || hardOwned || menuTab === 'settings';
+  b.hidden = !storeReady || hardOwned || menuTab !== 'stage';   // 挑戦・自由練習・設定では出さない（右上のラベルで知らせる）
+  const pc = $('#promoChip'); if (pc) { pc.hidden = !storeReady || hardOwned; $('#promoPrice').textContent = hardPrice ? `${hardPrice}・買い切り` : '買い切り'; }
   // ハードの鍵付きを選んでいる間は見えなくするだけにして、場所は残す（ノーマル⇄ハードで画面の高さが変わらないように）
   b.classList.toggle('ghost', storeReady && menuTab === 'stage' && hardLocked());
 }
@@ -2072,6 +2081,7 @@ $('#stageBtn').addEventListener('click', () => {
   if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
   else window.open(APP_STORE_URL, '_blank', 'noopener');                                  // ウェブ版：App Store のアプリのページへ
 });
+$('#promoChip').addEventListener('click', () => { track('purchase_tap', { from:'chip' }); appPost({ type:'buy' }); });
 $('#stageGrid').addEventListener('click', e => { if (e.target.closest('#hardBuy')) return $('#stageBtn').click(); const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return; sel[selSet] = +b.dataset.n; syncStageMenu(); });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
