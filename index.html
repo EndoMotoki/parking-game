@@ -145,6 +145,8 @@ details.more[open] summary::before{content:"− "}
 #chalBest span{display:block;font-size:12px;color:#f2c14e;margin-top:3px}
 #chalBest span.none{color:var(--muted)}
 #chalNote{margin:8px 0 0;text-align:center;font-size:12px}
+#chalResume[hidden]{display:none}
+#chalResume:not([hidden])+#chalBtn{background:#2a2f36;color:var(--text);margin-top:8px}
 #demoPick{z-index:30;background:rgba(8,9,11,.45)}
 #demoPick .card{width:min(360px,100%);text-align:center}
 #demoPick h3{margin:0 0 4px;font-size:16px}
@@ -412,7 +414,8 @@ body.exitTask #tDone{display:none}
     </div>
     <div id="chalPane" hidden>
       <div id="chalBest"><b>挑戦モード</b><span id="chalRec"></span></div>
-      <p id="chalNote" class="keys">ランダムな駐車場で、1番から少しずつ難しくなります（混み具合・枠の狭さ・車の大きさ）。60点以上でクリアすると次へ進み、ぶつけたり60点未満だったりしたらそこで終わり。何番まで行けるか挑戦しましょう。挑戦中は「やり直し」「お手本」は使えません。</p>
+      <p id="chalNote" class="keys">ランダムな駐車場で、1番から少しずつ難しくなります（混み具合・枠の狭さ・車の大きさ）。60点以上でクリアすると次へ進み、ぶつけたり60点未満だったりしたらそこで終わり。何番まで行けるか挑戦しましょう。挑戦中は「やり直し」「お手本」は使えません。クリアしたあとでメニューに戻っても、あとで続きから再開できます。</p>
+      <button class="bigbtn" id="chalResume" hidden>続きから</button>
       <button class="bigbtn" id="chalBtn">挑戦スタート</button>
     </div>
     <div id="freePane" hidden>
@@ -740,7 +743,14 @@ function challengeStage(n){
   return c;
 }
 const chalBest = () => +bestScores.challenge.best || 0;
+// 途中で終わった挑戦の続き（次に挑戦する番号）。ぶつけたり60点未満だったりして終わったら消す。1番からのときも消す
+const chalRun = () => +bestScores.challenge.run || 0;
+function saveChalRun(n){
+  if (n > 1) bestScores.challenge.run = n; else delete bestScores.challenge.run;
+  try { localStorage.setItem('bestScores', JSON.stringify(bestScores)); } catch(e) {}
+}
 function startChallenge(n){
+  saveChalRun(n);
   chalStage = challengeStage(n);
   enterStage('challenge', n); beginPlay();
   track('challenge_start', { stage:n });
@@ -1807,7 +1817,8 @@ function finishResult(score, rows, tips, title){
   if (chal) {
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     chalPrev = chalBest();
-    if (stageCleared && stageNo > chalPrev) { bestScores.challenge.best = stageNo; try { localStorage.setItem('bestScores', JSON.stringify(bestScores)); } catch(e) {} }
+    if (stageCleared && stageNo > chalPrev) bestScores.challenge.best = stageNo;
+    saveChalRun(stageCleared ? stageNo + 1 : 0);   // クリアしたら次の番号から続けられるように。終わったら続きは消す
     title = stageCleared ? `挑戦 ${stageNo} クリア！` : stageNo > 1 ? `挑戦おわり：${stageNo - 1} 番までクリア` : '挑戦おわり：1 番をクリアできませんでした';
   } else if (stageNo) {
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
@@ -1973,10 +1984,14 @@ document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('c
 setMenuTab(menuTab);
 // メニューで Enter / ＋：いま開いているタブのスタート
 const hardLocked = () => selSet === 'hard' && !hardOwned;
-const menuStart = () => menuTab === 'free' ? startGame() : menuTab === 'challenge' ? startChallenge(1) : !hardLocked() && startStage(selSet, sel[selSet]);
+const menuStart = () => menuTab === 'free' ? startGame() : menuTab === 'challenge' ? startChallenge(chalRun() || 1) : !hardLocked() && startStage(selSet, sel[selSet]);
 $('#chalBtn').addEventListener('click', () => startChallenge(1));
+$('#chalResume').addEventListener('click', () => startChallenge(chalRun() || 1));
 function syncChalMenu(){
-  const b = chalBest();
+  const b = chalBest(), run = chalRun();
+  $('#chalResume').hidden = !run;
+  $('#chalResume').textContent = `続きから（挑戦 ${run}）`;
+  $('#chalBtn').textContent = run ? '最初から挑戦' : '挑戦スタート';
   $('#chalRec').textContent = b ? `最高記録：${b} 番までクリア` : '最高記録：まだ記録なし';
   $('#chalRec').classList.toggle('none', !b);
 }
