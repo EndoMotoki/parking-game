@@ -91,6 +91,8 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 /* バッジ */
 #menuHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 #menuHead h1{margin:0}
+body.inApp #menuHead h1{display:none}
+body.inApp #menuHead:not(:has(.badgeChip)){display:none}
 #badgeRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .badgeChip{display:flex;align-items:center;gap:4px;padding:3px 9px 3px 4px;border-radius:999px;background:#1f2329;font-size:11px;font-weight:600}
 .badgeChip svg{width:22px;height:22px}
@@ -130,6 +132,9 @@ details.more[open] summary::before{content:"− "}
 #setPane summary::before{content:none !important}
 #stageSets{margin-bottom:10px}
 #stageSets button[data-set="hard"].on{color:#ffb07a}
+/* 未購入のときはハードに「プレミアム」のラベル（購入が必要と分かるように） */
+.prem{display:none;margin-left:6px;padding:1px 7px;border-radius:999px;background:#5a4214;color:#ffd27a;font-size:10px;font-weight:700;vertical-align:1px}
+#stageSets button.paid .prem{display:inline-block}
 #stageBtn.locked{background:#3a2a1c;color:#ffb07a;border:1px solid #6b4a2c}
 #stageBtn:disabled{opacity:.7;cursor:default}
 #stageRow{display:flex;gap:6px;align-items:stretch}
@@ -144,6 +149,8 @@ details.more[open] summary::before{content:"− "}
 #resumeBtn{margin:0 0 8px}
 #menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
 #menuFoot .linkbtn{margin:0}
+#menuFoot[hidden]{display:none}
+#appStoreMsg:empty{display:none}
 #stageNote{margin:8px 0 0;text-align:center;font-size:12px}
 #chalBest{text-align:center;background:#0f1114;border-radius:8px;padding:12px 8px}
 #chalBest b{display:block;font-size:22px}
@@ -249,7 +256,8 @@ details.more[open] summary::before{content:"− "}
   #stageNote, #chalNote{font-size:13px}
   #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
-  #menuHead h1{font-size:17px}
+  #menuHead h1{display:none}
+  #menuHead:not(:has(.badgeChip)){display:none}
   #menuFoot{order:98;margin:14px 0 10px}
   /* 下のタブ：アイコン付きで大きく。選んでいるタブはオレンジの面で目立たせる */
   #menuTabs{order:99;position:sticky;bottom:0;margin:auto -16px 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:6px;background:#22262c;border-top:1px solid #343940;border-radius:0}
@@ -449,7 +457,7 @@ body.exitTask #tDone{display:none}
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4h11l-2.5 4.5L17 13H6"/></svg><span>ステージ</span></button><button data-tab="challenge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>挑戦</span></button><button data-tab="free"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M3.3 10.5H10M14 10.5h6.7M12 14v7"/></svg><span>自由練習</span></button><button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button></div>
     <div id="stagePane">
-      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード</button></div>
+      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード<span class="prem">★ プレミアム</span></button></div>
       <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span><span id="stageBest"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <div id="stageGrid"></div>
       <p id="stageNote" class="keys"></p>
@@ -484,7 +492,7 @@ body.exitTask #tDone{display:none}
       <button class="bigbtn" id="startBtn">スタート</button>
     </div>
 
-    <button id="buyNoAds" hidden><b>★ 広告を削除＋ハードステージ解放<span id="buyPrice"></span></b><span id="buyNote">難しい20ステージ＋広告なし（一度買えばずっと）</span></button>
+    <button id="buyNoAds" hidden><b>★ 広告を削除＋ハードステージ解放<span id="buyPrice"></span></b><span id="buyNote">難しい20ステージ＋広告なし（買い切り）</span></button>
 
     <div id="setPane" hidden>
     <details class="more"><summary>詳細設定</summary>
@@ -2015,6 +2023,7 @@ function setMenuTab(t){
   menuTab = t;
   $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free'; $('#chalPane').hidden = t !== 'challenge'; $('#setPane').hidden = t !== 'settings';
   if (t === 'settings') document.querySelectorAll('#setPane details').forEach(d => d.open = true);
+  $('#menuFoot').hidden = t !== 'settings';   // 遊び方・プライバシー・購入の復元は設定タブだけに
   syncChalMenu();
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   if (t !== 'settings') try { localStorage.setItem('menuTab', t); } catch(e) {}
@@ -2024,7 +2033,7 @@ function setMenuTab(t){
 let storeReady = false;
 function syncBuyBtn(){
   const b = $('#buyNoAds'); if (!b) return;
-  b.hidden = !storeReady || hardOwned || (menuTab === 'stage' && hardLocked());
+  b.hidden = !storeReady || hardOwned || menuTab === 'settings' || (menuTab === 'stage' && hardLocked());
 }
 document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
 setMenuTab(menuTab);
@@ -2059,6 +2068,7 @@ function syncStageMenu(){
   sel[selSet] = Math.max(1, Math.min(unlocked[selSet], sel[selSet]));
   const n = sel[selSet];
   document.querySelectorAll('#stageSets button').forEach(b => b.classList.toggle('on', b.dataset.set === selSet));
+  $('#stageSets button[data-set="hard"]').classList.toggle('paid', !hardOwned);
   $('#stageNum').textContent = `${stageLabel(selSet, n)} / ${list.length}`;
   $('#stageName').textContent = list[n - 1].name;
   const best = bestOf(selSet, n);
@@ -2079,7 +2089,7 @@ function syncStageMenu(){
     const st = !open ? 'lock' : k < unlocked[selSet] || b >= STAGE_CLEAR ? 'done' : 'next';
     return `<button data-n="${k}" class="${st}${k === n && !locked ? ' sel' : ''}"${open ? '' : ' disabled'}><b>${k}</b><small>${st === 'done' && b !== undefined ? b : st === 'next' ? 'NEXT' : ''}</small></button>`;
   }).join('');
-  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。一度買えばずっと遊べて、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。買い切りで、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 renderBadges();
@@ -2552,10 +2562,11 @@ game = 'menu';
 const APP = APP_BRIDGE;
 function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
 if (APP) {
+  document.body.classList.add('inApp');
   $('#appStore').hidden = false;
   $('#iosLink').remove();   // アプリの中ではストアへのリンクは出さない
   $('#buyNoAds').addEventListener('click', () => { track('purchase_tap', { from:'menu' }); appPost({ type:'buy' }); });
-  $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
+  $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（買い切り）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
   // リンクはアプリの外（ブラウザ）で開く
   $('#privacyLink').addEventListener('click', e => { e.preventDefault(); appPost({ type:'openURL', url: e.currentTarget.href }); });
