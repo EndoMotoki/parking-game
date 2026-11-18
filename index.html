@@ -93,7 +93,10 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 #menuHead h1{margin:0}
 body.inApp #menuHead h1{display:none}
 body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
-#badgeRow{flex:1;flex-wrap:nowrap !important;overflow:hidden}
+#badgeRow{flex:1;min-width:0;flex-wrap:nowrap !important}
+/* 右上の購入ラベルと並ぶときは、バッジはメダルの絵だけにして欠けないようにする（名前は長押し・ホバーの説明で） */
+#menuHead:has(#promoChip:not([hidden])) .badgeChip{padding:3px;gap:0}
+#menuHead:has(#promoChip:not([hidden])) .badgeChip span{display:none}
 /* メニュー右上：購入でできること（広告なし＋ハード）を知らせるラベル。押すと購入 */
 #promoChip{display:flex;align-items:center;gap:7px;flex:none;margin-left:auto;padding:6px 12px 6px 9px;border:1px solid #8a6a2c;border-radius:999px;background:#3a2c14;color:#ffd27a;font:inherit;cursor:pointer;text-align:left}
 #promoChip[hidden]{display:none}
@@ -789,7 +792,7 @@ function badgeSvg(set){
 }
 function renderBadges(){
   const el = document.getElementById('badgeRow'); if (!el) return;
-  el.innerHTML = ['normal', 'hard'].filter(k => badges[k]).map(k => `<span class="badgeChip" title="${BADGES[k].desc}">${badgeSvg(k)}${BADGES[k].name}</span>`).join('');
+  el.innerHTML = ['normal', 'hard'].filter(k => badges[k]).map(k => `<span class="badgeChip" title="${BADGES[k].desc}">${badgeSvg(k)}<span>${BADGES[k].name}</span></span>`).join('');
 }
 // ステージごとの過去最高得点 { normal:{ 1:95, ... }, hard:{ ... } }
 // challenge：挑戦モードの最高記録 { best: クリアした一番大きい番号 }
