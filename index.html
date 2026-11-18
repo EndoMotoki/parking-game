@@ -229,6 +229,7 @@ details.more[open] summary::before{content:"− "}
 #buyNoAds>span{font-size:11px;color:#cdb98a}
 #buyNoAds:disabled{opacity:.5}
 #buyNoAds[hidden]{display:none}
+#buyNoAds.ghost{visibility:hidden}
 @media (max-height:500px){ #buyNoAds{margin-top:8px;padding:7px 10px} #buyNoAds>span{display:none} }
 /* スマホ縦向き：メニューは画面いっぱいに表示。「スタート」とタブは親指の届く下側に */
 @media (orientation:portrait) and (max-width:600px){
@@ -257,13 +258,17 @@ details.more[open] summary::before{content:"− "}
   #hardPromo span{font-size:12px;color:#c4cad1;line-height:1.6}
   #hardPromo button{margin-top:4px;width:100%;padding:12px 8px;border:0;border-radius:10px;background:#f0b44a;color:#2a1a05;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
   #hardPromo small{font-size:11px;color:#aab1b9}
-  #stagePane.lockedSet #stageBtn, #stagePane.lockedSet #stageNote, #stagePane.lockedSet #stageTitle span{display:none}
+  #stagePane.lockedSet #stageBtn, #stagePane.lockedSet #stageNote, #stagePane.lockedSet #stageTitle span{visibility:hidden}
   #stageTitle b{font-size:22px}
   #stageTitle span{font-size:14px}
   #stagePrev, #stageNext{width:48px;font-size:14px}
   #chalBest{padding:18px 8px}
   #chalBest b{font-size:26px}
   #stageNote, #chalNote{font-size:13px}
+  /* ノーマル・ハード・ステージを切り替えても高さが変わらないように、説明は2行分の高さを取っておく */
+  #stageNote{min-height:50px;display:flex;align-items:center;justify-content:center}
+  #stageBtn{height:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #stageTitle #stageBest[hidden]{display:block;visibility:hidden}
   #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
   #menuHead h1{display:none}
@@ -2043,7 +2048,9 @@ function setMenuTab(t){
 let storeReady = false;
 function syncBuyBtn(){
   const b = $('#buyNoAds'); if (!b) return;
-  b.hidden = !storeReady || hardOwned || menuTab === 'settings' || (menuTab === 'stage' && hardLocked());
+  b.hidden = !storeReady || hardOwned || menuTab === 'settings';
+  // ハードの鍵付きを選んでいる間は見えなくするだけにして、場所は残す（ノーマル⇄ハードで画面の高さが変わらないように）
+  b.classList.toggle('ghost', storeReady && menuTab === 'stage' && hardLocked());
 }
 document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
 setMenuTab(menuTab);
