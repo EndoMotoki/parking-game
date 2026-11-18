@@ -221,11 +221,21 @@ details.more[open] summary::before{content:"− "}
 #buyNoAds:disabled{opacity:.5}
 #buyNoAds[hidden]{display:none}
 @media (max-height:500px){ #buyNoAds{margin-top:8px;padding:7px 10px} #buyNoAds>span{display:none} }
-/* スマホ縦向き：メニューは下から出るシート。駐車場が見えたまま、親指の届く下半分で選ぶ。タブは一番下 */
+/* スマホ縦向き：メニューは画面いっぱいに表示。「スタート」とタブは親指の届く下側に */
 @media (orientation:portrait) and (max-width:600px){
-  #menu{align-items:flex-end;padding:0;background:rgba(8,9,11,.3)}
-  #menu .card{width:100%;max-height:78vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;padding:8px 16px 0;box-shadow:0 -10px 30px rgba(0,0,0,.4);animation:sheetIn .22s ease-out}
-  #menu .card::before{content:"";flex:none;width:36px;height:4px;border-radius:2px;background:#3d434b;margin:0 auto 10px}
+  #menu{align-items:stretch;padding:0;background:#16191d}
+  #menu .card{width:100%;max-height:none;height:100%;display:flex;flex-direction:column;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 16px 0;box-shadow:none}
+  #stagePane:not([hidden]), #chalPane:not([hidden]), #freePane:not([hidden]){display:flex;flex-direction:column;flex:1 0 auto}
+  #stageNote, #chalNote{margin-bottom:auto !important}
+  #stageSets, #chalBest{margin-top:auto}
+  #stageTitle{padding:16px 0}
+  #stageTitle b{font-size:22px}
+  #stageTitle span{font-size:14px}
+  #stagePrev, #stageNext{width:48px;font-size:14px}
+  #chalBest{padding:18px 8px}
+  #chalBest b{font-size:26px}
+  #stageNote, #chalNote{font-size:13px}
+  #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
   #menuHead h1{font-size:17px}
   #menuFoot{order:98;margin:14px 0 10px}
@@ -236,7 +246,6 @@ details.more[open] summary::before{content:"− "}
   #menuTabs svg{display:block}
   .bigbtn{padding:13px;font-size:16px}
 }
-@keyframes sheetIn{from{transform:translateY(40px)}to{transform:none}}
 
 @media (max-height:500px){ .card{padding:14px 16px} .card h1{margin-bottom:8px} .opt{margin:5px 0} .seg button{padding:5px 4px} .bigbtn{margin-top:10px;padding:9px} }
 
