@@ -249,8 +249,8 @@ details.more[open] summary::before{content:"− "}
   #stageTitle{padding:12px 0}
   /* C案：ステージを 5 列のマス目で並べ、タップで選ぶ。◀▶ は使わない */
   #stagePrev, #stageNext{display:none}
-  #stageGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:12px}
-  #stageGrid>button{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid transparent;border-radius:10px;background:#262a30;color:#6b7179;font:inherit;cursor:pointer;padding:0}
+  #stageGrid{display:grid;grid-template-columns:repeat(5,var(--tile,1fr));justify-content:center;gap:7px;margin-bottom:12px}
+  #stageGrid>button{aspect-ratio:1;width:var(--tile,auto);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid transparent;border-radius:10px;background:#262a30;color:#6b7179;font:inherit;cursor:pointer;padding:0}
   #stageGrid>button b{font-size:17px}
   #stageGrid>button small{font-size:10px;min-height:12px;font-weight:600}
   #stageGrid .done{background:#22432f;color:#e6f4ea}
@@ -259,6 +259,8 @@ details.more[open] summary::before{content:"− "}
   #stageGrid .lock{opacity:.55;cursor:default}
   #stageGrid .sel{border-color:#ffa45c}
   #stageGrid{position:relative}
+  /* スマホ縦向きでは、購入は右上のラベルとハードの案内で知らせるので、下の金色のボタンは出さない（画面の低い機種でマス目が小さくなりすぎないように） */
+  #buyNoAds{display:none !important}
   #hardPromo{position:absolute;inset:6% 4%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px 16px;text-align:center;
     background:rgba(22,25,29,.94);border:1px solid #6b4a2c;border-radius:16px}
   #hardPromo svg{width:30px;height:30px;fill:none;stroke:#ffd27a;stroke-width:2;stroke-linecap:round}
@@ -283,7 +285,7 @@ details.more[open] summary::before{content:"− "}
   #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
   #menuFoot{order:98;margin:14px 0 10px}
   /* 下のタブ：アイコン付きで大きく。選んでいるタブはオレンジの面で目立たせる */
-  #menuTabs{order:99;position:sticky;bottom:0;margin:auto -16px 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:6px;background:#22262c;border-top:1px solid #343940;border-radius:0}
+  #menuTabs{order:99;position:sticky;bottom:0;z-index:5;margin:auto -16px 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:6px;background:#22262c;border-top:1px solid #343940;border-radius:0}
   #menuTabs button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 2px 8px;border-radius:12px;background:transparent !important;font-size:13px;color:#d4d9de;font-weight:600}
   #menuTabs button.on{background:rgba(239,138,58,.18) !important;color:#ffa45c}
   #menuTabs svg{display:block}
@@ -2050,6 +2052,7 @@ function setMenuTab(t){
   syncChalMenu();
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   if (t !== 'settings') try { localStorage.setItem('menuTab', t); } catch(e) {}
+  if (typeof fitStageGrid === 'function') setTimeout(fitStageGrid, 0);
   syncBuyBtn();
 }
 // 金色の購入ボタン：アプリ版で未購入のときだけ。ハードの鍵付きステージを選んでいる間は「スタート」の場所が同じ購入ボタンになるので隠す
@@ -2081,6 +2084,20 @@ $('#stageBtn').addEventListener('click', () => {
   if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
   else window.open(APP_STORE_URL, '_blank', 'noopener');                                  // ウェブ版：App Store のアプリのページへ
 });
+// スマホ縦向きで画面が低いとき（広告のバナーやホームバーの分など）、ステージのマス目を小さくして、下のタブにかからないようにする
+function fitStageGrid(){
+  const g = $('#stageGrid'), card = $('#menu .card');
+  if (!g || !card) return;
+  g.style.removeProperty('--tile');
+  if (getComputedStyle(g).display !== 'grid' || $('#stagePane').hidden || $('#menu').classList.contains('off')) return;
+  let tile = (g.clientWidth - 4*7) / 5;
+  // 中身がメニューの高さに収まる（スクロールしなくてよい）まで、マス目を少しずつ小さくする
+  const over = () => card.scrollHeight > card.clientHeight + 1;
+  for (let i = 0; i < 40 && over() && tile > 34; i++) {
+    tile -= 2; g.style.setProperty('--tile', tile + 'px');
+  }
+}
+addEventListener('resize', () => setTimeout(fitStageGrid, 0));
 $('#promoChip').addEventListener('click', () => { track('purchase_tap', { from:'chip' }); appPost({ type:'buy' }); });
 $('#stageGrid').addEventListener('click', e => { if (e.target.closest('#hardBuy')) return $('#stageBtn').click(); const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return; sel[selSet] = +b.dataset.n; syncStageMenu(); });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
@@ -2121,6 +2138,7 @@ function syncStageMenu(){
     + `<b>ハード ${list.length} ステージ</b><span>動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場</span>`
     + `<button id="hardBuy">${app ? `広告削除＋ハード解放${hardPrice ? `（${hardPrice}）` : ''}` : 'App Store で見る'}</button><small>${app ? '買い切り・広告も出なくなります' : 'iPhone / iPad アプリで遊べます'}</small></div>`);
   $('#stagePane').classList.toggle('lockedSet', locked);
+  setTimeout(fitStageGrid, 0);
   $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。買い切りで、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
