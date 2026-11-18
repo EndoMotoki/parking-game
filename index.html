@@ -132,9 +132,10 @@ details.more[open] summary::before{content:"− "}
 #setPane summary::before{content:none !important}
 #stageSets{margin-bottom:10px}
 #stageSets button[data-set="hard"].on{color:#ffb07a}
-/* 未購入のときはハードに「プレミアム」のラベル（購入が必要と分かるように） */
+/* 未購入のときはハードに鍵マークと「未解放」のラベル（購入が必要と分かるように） */
 .prem{display:none;margin-left:6px;padding:1px 7px;border-radius:999px;background:#5a4214;color:#ffd27a;font-size:10px;font-weight:700;vertical-align:1px}
 #stageSets button.paid .prem{display:inline-block}
+.prem svg{width:10px;height:10px;margin-right:3px;vertical-align:-1px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 #stageBtn.locked{background:#3a2a1c;color:#ffb07a;border:1px solid #6b4a2c}
 #stageBtn:disabled{opacity:.7;cursor:default}
 #stageRow{display:flex;gap:6px;align-items:stretch}
@@ -457,7 +458,7 @@ body.exitTask #tDone{display:none}
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4h11l-2.5 4.5L17 13H6"/></svg><span>ステージ</span></button><button data-tab="challenge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>挑戦</span></button><button data-tab="free"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M3.3 10.5H10M14 10.5h6.7M12 14v7"/></svg><span>自由練習</span></button><button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button></div>
     <div id="stagePane">
-      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード<span class="prem">★ プレミアム</span></button></div>
+      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード<span class="prem"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>未解放</span></button></div>
       <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span><span id="stageBest"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <div id="stageGrid"></div>
       <p id="stageNote" class="keys"></p>
