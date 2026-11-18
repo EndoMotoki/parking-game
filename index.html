@@ -91,6 +91,8 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 /* バッジ */
 #menuHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 #menuHead h1{margin:0}
+body.inApp #menuHead h1{display:none}
+body.inApp #menuHead:not(:has(.badgeChip)){display:none}
 #badgeRow{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .badgeChip{display:flex;align-items:center;gap:4px;padding:3px 9px 3px 4px;border-radius:999px;background:#1f2329;font-size:11px;font-weight:600}
 .badgeChip svg{width:22px;height:22px}
@@ -123,12 +125,17 @@ details.more[open] summary::before{content:"− "}
 /* メニュー：いちばん上にステージ（メインの操作）、それ以外は折りたたみと下の小さなリンク */
 #menuTabs{margin-bottom:14px}
 #menuTabs button{padding:9px 4px;font-size:14px}
+#menuTabs svg{display:none;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #stagePane[hidden], #freePane[hidden], #setPane[hidden]{display:none}
 #setPane details.more:first-child{margin-top:0;border-top:0;padding-top:0}
 #setPane summary{pointer-events:none;font-size:13px;font-weight:600;color:var(--text)}
 #setPane summary::before{content:none !important}
 #stageSets{margin-bottom:10px}
 #stageSets button[data-set="hard"].on{color:#ffb07a}
+/* 未購入のときはハードに鍵マークと「未解放」のラベル（購入が必要と分かるように） */
+.prem{display:none;margin-left:6px;padding:1px 7px;border-radius:999px;background:#5a4214;color:#ffd27a;font-size:10px;font-weight:700;vertical-align:1px}
+#stageSets button.paid .prem{display:inline-block}
+.prem svg{width:10px;height:10px;margin-right:3px;vertical-align:-1px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
 #stageBtn.locked{background:#3a2a1c;color:#ffb07a;border:1px solid #6b4a2c}
 #stageBtn:disabled{opacity:.7;cursor:default}
 #stageRow{display:flex;gap:6px;align-items:stretch}
@@ -139,9 +146,12 @@ details.more[open] summary::before{content:"− "}
 #stageTitle #stageBest.none{color:var(--muted)}
 #stagePrev, #stageNext{width:40px;border:0;border-radius:8px;background:#1f2329;color:var(--muted);font-size:12px;cursor:pointer}
 #stagePrev:disabled, #stageNext:disabled{opacity:.25;cursor:default}
+#stageGrid{display:none}
 #resumeBtn{margin:0 0 8px}
 #menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
 #menuFoot .linkbtn{margin:0}
+#menuFoot[hidden]{display:none}
+#appStoreMsg:empty{display:none}
 #stageNote{margin:8px 0 0;text-align:center;font-size:12px}
 #chalBest{text-align:center;background:#0f1114;border-radius:8px;padding:12px 8px}
 #chalBest b{display:block;font-size:22px}
@@ -220,22 +230,52 @@ details.more[open] summary::before{content:"− "}
 #buyNoAds:disabled{opacity:.5}
 #buyNoAds[hidden]{display:none}
 @media (max-height:500px){ #buyNoAds{margin-top:8px;padding:7px 10px} #buyNoAds>span{display:none} }
-/* スマホ縦向き：メニューは下から出るシート。駐車場が見えたまま、親指の届く下半分で選ぶ。タブは一番下 */
+/* スマホ縦向き：メニューは画面いっぱいに表示。「スタート」とタブは親指の届く下側に */
 @media (orientation:portrait) and (max-width:600px){
-  #menu{align-items:flex-end;padding:0;background:rgba(8,9,11,.3)}
-  #menu .card{width:100%;max-height:78vh;display:flex;flex-direction:column;border-radius:18px 18px 0 0;padding:8px 16px 0;box-shadow:0 -10px 30px rgba(0,0,0,.4);animation:sheetIn .22s ease-out}
-  #menu .card::before{content:"";flex:none;width:36px;height:4px;border-radius:2px;background:#3d434b;margin:0 auto 10px}
+  #menu{align-items:stretch;padding:0;background:#16191d}
+  #menu .card{width:100%;max-height:none;height:100%;display:flex;flex-direction:column;border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 16px 0;box-shadow:none}
+  #stagePane:not([hidden]), #chalPane:not([hidden]), #freePane:not([hidden]){display:flex;flex-direction:column;flex:1 0 auto}
+  #stageNote, #chalNote{margin-bottom:auto !important}
+  #stageSets, #chalBest{margin-top:auto}
+  #stageTitle{padding:12px 0}
+  /* C案：ステージを 5 列のマス目で並べ、タップで選ぶ。◀▶ は使わない */
+  #stagePrev, #stageNext{display:none}
+  #stageGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:12px}
+  #stageGrid>button{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid transparent;border-radius:10px;background:#262a30;color:#6b7179;font:inherit;cursor:pointer;padding:0}
+  #stageGrid>button b{font-size:17px}
+  #stageGrid>button small{font-size:10px;min-height:12px;font-weight:600}
+  #stageGrid .done{background:#22432f;color:#e6f4ea}
+  #stageGrid .done small{color:#9fd6b0}
+  #stageGrid .next{background:#4a3220;color:#ffb27a}
+  #stageGrid .lock{opacity:.55;cursor:default}
+  #stageGrid .sel{border-color:#ffa45c}
+  #stageGrid{position:relative}
+  #hardPromo{position:absolute;inset:6% 4%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px 16px;text-align:center;
+    background:rgba(22,25,29,.94);border:1px solid #6b4a2c;border-radius:16px}
+  #hardPromo svg{width:30px;height:30px;fill:none;stroke:#ffd27a;stroke-width:2;stroke-linecap:round}
+  #hardPromo b{font-size:18px;color:#ffd27a}
+  #hardPromo span{font-size:12px;color:#c4cad1;line-height:1.6}
+  #hardPromo button{margin-top:4px;width:100%;padding:12px 8px;border:0;border-radius:10px;background:#f0b44a;color:#2a1a05;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+  #hardPromo small{font-size:11px;color:#aab1b9}
+  #stagePane.lockedSet #stageBtn, #stagePane.lockedSet #stageNote, #stagePane.lockedSet #stageTitle span{display:none}
+  #stageTitle b{font-size:22px}
+  #stageTitle span{font-size:14px}
+  #stagePrev, #stageNext{width:48px;font-size:14px}
+  #chalBest{padding:18px 8px}
+  #chalBest b{font-size:26px}
+  #stageNote, #chalNote{font-size:13px}
+  #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
-  #menuHead h1{font-size:17px}
+  #menuHead h1{display:none}
+  #menuHead:not(:has(.badgeChip)){display:none}
   #menuFoot{order:98;margin:14px 0 10px}
-  #menuTabs{order:99;position:sticky;bottom:0;margin:auto -16px 0;padding:6px 6px calc(8px + env(safe-area-inset-bottom));background:#16191d;border-top:1px solid #262a30;border-radius:0}
-  #menuTabs button{background:transparent !important;padding:8px 2px;font-size:13px;color:#8c939b;font-weight:600}
-  #menuTabs button.on{color:var(--accent)}
-  #menuTabs button::before{content:"";display:block;width:20px;height:3px;border-radius:2px;margin:0 auto 6px;background:transparent}
-  #menuTabs button.on::before{background:var(--accent)}
+  /* 下のタブ：アイコン付きで大きく。選んでいるタブはオレンジの面で目立たせる */
+  #menuTabs{order:99;position:sticky;bottom:0;margin:auto -16px 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:6px;background:#22262c;border-top:1px solid #343940;border-radius:0}
+  #menuTabs button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 2px 8px;border-radius:12px;background:transparent !important;font-size:13px;color:#d4d9de;font-weight:600}
+  #menuTabs button.on{background:rgba(239,138,58,.18) !important;color:#ffa45c}
+  #menuTabs svg{display:block}
   .bigbtn{padding:13px;font-size:16px}
 }
-@keyframes sheetIn{from{transform:translateY(40px)}to{transform:none}}
 
 @media (max-height:500px){ .card{padding:14px 16px} .card h1{margin-bottom:8px} .opt{margin:5px 0} .seg button{padding:5px 4px} .bigbtn{margin-top:10px;padding:9px} }
 
@@ -425,10 +465,11 @@ body.exitTask #tDone{display:none}
     <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div></div>
 
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
-    <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="challenge">挑戦</button><button data-tab="free">自由練習</button><button data-tab="settings">設定</button></div>
+    <div class="seg" id="menuTabs"><button data-tab="stage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4h11l-2.5 4.5L17 13H6"/></svg><span>ステージ</span></button><button data-tab="challenge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>挑戦</span></button><button data-tab="free"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M3.3 10.5H10M14 10.5h6.7M12 14v7"/></svg><span>自由練習</span></button><button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button></div>
     <div id="stagePane">
-      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード</button></div>
+      <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード<span class="prem"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>未解放</span></button></div>
       <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span><span id="stageBest"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
+      <div id="stageGrid"></div>
       <p id="stageNote" class="keys"></p>
       <button class="bigbtn" id="stageBtn">スタート</button>
     </div>
@@ -461,7 +502,7 @@ body.exitTask #tDone{display:none}
       <button class="bigbtn" id="startBtn">スタート</button>
     </div>
 
-    <button id="buyNoAds" hidden><b>★ 広告を削除＋ハードステージ解放<span id="buyPrice"></span></b><span id="buyNote">難しい20ステージ＋広告なし（一度買えばずっと）</span></button>
+    <button id="buyNoAds" hidden><b>★ 広告を削除＋ハードステージ解放<span id="buyPrice"></span></b><span id="buyNote">難しい20ステージ＋広告なし（買い切り）</span></button>
 
     <div id="setPane" hidden>
     <details class="more"><summary>詳細設定</summary>
@@ -1992,6 +2033,7 @@ function setMenuTab(t){
   menuTab = t;
   $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free'; $('#chalPane').hidden = t !== 'challenge'; $('#setPane').hidden = t !== 'settings';
   if (t === 'settings') document.querySelectorAll('#setPane details').forEach(d => d.open = true);
+  $('#menuFoot').hidden = t !== 'settings';   // 遊び方・プライバシー・購入の復元は設定タブだけに
   syncChalMenu();
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   if (t !== 'settings') try { localStorage.setItem('menuTab', t); } catch(e) {}
@@ -2001,7 +2043,7 @@ function setMenuTab(t){
 let storeReady = false;
 function syncBuyBtn(){
   const b = $('#buyNoAds'); if (!b) return;
-  b.hidden = !storeReady || hardOwned || (menuTab === 'stage' && hardLocked());
+  b.hidden = !storeReady || hardOwned || menuTab === 'settings' || (menuTab === 'stage' && hardLocked());
 }
 document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('click', () => setMenuTab(b.dataset.tab)));
 setMenuTab(menuTab);
@@ -2023,6 +2065,7 @@ $('#stageBtn').addEventListener('click', () => {
   if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
   else window.open(APP_STORE_URL, '_blank', 'noopener');                                  // ウェブ版：App Store のアプリのページへ
 });
+$('#stageGrid').addEventListener('click', e => { if (e.target.closest('#hardBuy')) return $('#stageBtn').click(); const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return; sel[selSet] = +b.dataset.n; syncStageMenu(); });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
 document.querySelectorAll('#stageSets button').forEach(b => b.addEventListener('click', () => {
@@ -2035,6 +2078,7 @@ function syncStageMenu(){
   sel[selSet] = Math.max(1, Math.min(unlocked[selSet], sel[selSet]));
   const n = sel[selSet];
   document.querySelectorAll('#stageSets button').forEach(b => b.classList.toggle('on', b.dataset.set === selSet));
+  $('#stageSets button[data-set="hard"]').classList.toggle('paid', !hardOwned);
   $('#stageNum').textContent = `${stageLabel(selSet, n)} / ${list.length}`;
   $('#stageName').textContent = list[n - 1].name;
   const best = bestOf(selSet, n);
@@ -2049,7 +2093,18 @@ function syncStageMenu(){
   syncBuyBtn();
   $('#stageBtn').classList.toggle('locked', locked);
   const c = list[n - 1];
-  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。一度買えばずっと遊べて、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
+  // ステージのマス目（スマホ縦向きで表示）：クリア済みは緑で点数、次に挑戦するステージはオレンジ、まだのステージは灰色
+  $('#stageGrid').innerHTML = list.map((_, i) => {
+    const k = i + 1, b = bestOf(selSet, k), open = !locked && k <= unlocked[selSet];
+    const st = !open ? 'lock' : k < unlocked[selSet] || b >= STAGE_CLEAR ? 'done' : 'next';
+    return `<button data-n="${k}" class="${st}${k === n && !locked ? ' sel' : ''}"${open ? '' : ' disabled'}><b>${k}</b><small>${st === 'done' && b !== undefined ? b : st === 'next' ? 'NEXT' : ''}</small></button>`;
+  }).join('') + (!locked ? '' :
+    // 未購入のハード：マス目の真ん中に購入の案内（スマホ縦向き）。下の「スタート」の場所の購入ボタンは隠す
+    `<div id="hardPromo"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`
+    + `<b>ハード ${list.length} ステージ</b><span>動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場</span>`
+    + `<button id="hardBuy">${app ? `広告削除＋ハード解放${hardPrice ? `（${hardPrice}）` : ''}` : 'App Store で見る'}</button><small>${app ? '買い切り・広告も出なくなります' : 'iPhone / iPad アプリで遊べます'}</small></div>`);
+  $('#stagePane').classList.toggle('lockedSet', locked);
+  $('#stageNote').textContent = locked ? `動く車や歩行者、柱のある立体駐車場、夜の駐車場など、実際に近い難しい駐車場の全${HARD_STAGES.length}ステージ` + (app ? '。買い切りで、広告も出なくなります' : '') : `${stageDesc(c)}　${STAGE_CLEAR}点以上でクリア`;
 }
 syncStageMenu();
 renderBadges();
@@ -2522,10 +2577,11 @@ game = 'menu';
 const APP = APP_BRIDGE;
 function appPost(m){ if (APP) try { APP.postMessage(m); } catch(e) {} }
 if (APP) {
+  document.body.classList.add('inApp');
   $('#appStore').hidden = false;
   $('#iosLink').remove();   // アプリの中ではストアへのリンクは出さない
   $('#buyNoAds').addEventListener('click', () => { track('purchase_tap', { from:'menu' }); appPost({ type:'buy' }); });
-  $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（一度買えばずっと）`;
+  $('#buyNote').textContent = `難しい${HARD_STAGES.length}ステージ＋広告なし（買い切り）`;
   $('#restoreBuy').addEventListener('click', () => appPost({ type:'restore' }));
   // リンクはアプリの外（ブラウザ）で開く
   $('#privacyLink').addEventListener('click', e => { e.preventDefault(); appPost({ type:'openURL', url: e.currentTarget.href }); });
