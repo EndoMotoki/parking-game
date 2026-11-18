@@ -140,6 +140,17 @@ details.more[open] summary::before{content:"− "}
 #menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
 #menuFoot .linkbtn{margin:0}
 #stageNote{margin:8px 0 0;text-align:center;font-size:12px}
+#chalBest{text-align:center;background:#0f1114;border-radius:8px;padding:12px 8px}
+#chalBest b{display:block;font-size:22px}
+#chalBest span{display:block;font-size:12px;color:#f2c14e;margin-top:3px}
+#chalBest span.none{color:var(--muted)}
+#chalNote{margin:8px 0 0;text-align:center;font-size:12px;line-height:1.8}
+#chalResume[hidden]{display:none}
+#chalResume:not([hidden])+#chalBtn{background:#2a2f36;color:var(--text);margin-top:8px}
+#demoPick{z-index:30;background:rgba(8,9,11,.45)}
+#demoPick .card{width:min(360px,100%);text-align:center}
+#demoPick h3{margin:0 0 4px;font-size:16px}
+#demoPick .btnrow{flex-wrap:wrap}
 #sStage{color:var(--accent);font-weight:600}
 #sStage[hidden]{display:none}
 /* ---- はじめての人向けの説明（スワイプで進む） ---- */
@@ -394,12 +405,18 @@ body.exitTask #tDone{display:none}
     <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div></div>
 
     <button class="subbtn" id="resumeBtn" hidden>続きから</button>
-    <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="free">自由練習</button></div>
+    <div class="seg" id="menuTabs"><button data-tab="stage">ステージ</button><button data-tab="challenge">挑戦</button><button data-tab="free">自由練習</button></div>
     <div id="stagePane">
       <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード</button></div>
       <div id="stageRow"><button id="stagePrev" aria-label="前のステージ">◀</button><div id="stageTitle"><b id="stageNum"></b><span id="stageName"></span><span id="stageBest"></span></div><button id="stageNext" aria-label="次のステージ">▶</button></div>
       <p id="stageNote" class="keys"></p>
       <button class="bigbtn" id="stageBtn">スタート</button>
+    </div>
+    <div id="chalPane" hidden>
+      <div id="chalBest"><b>挑戦モード</b><span id="chalRec"></span></div>
+      <p id="chalNote" class="keys">ランダムな駐車場で、だんだん難しくなります<br>60点以上でクリア → 次へ<br>ぶつける・60点未満 → 終わり<br>やり直し・お手本は使えません<br>途中でやめても続きから再開できます</p>
+      <button class="bigbtn" id="chalResume" hidden>続きから</button>
+      <button class="bigbtn" id="chalBtn">挑戦スタート</button>
     </div>
     <div id="freePane" hidden>
       <div class="opt" data-key="task"><label>練習</label><div class="seg">
@@ -529,6 +546,18 @@ body.exitTask #tDone{display:none}
       <button id="rNew">別の配置</button>
       <button id="rMenu">メニュー</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay off" id="demoPick">
+  <div class="card">
+    <h3>どちらのお手本を見ますか？</h3>
+    <div class="btnrow">
+      <button class="primary" id="dpBack">バックで駐車</button>
+      <button class="primary" id="dpFront">前向きで駐車</button>
+      <button id="dpCancel">やめる</button>
+    </div>
+    <p class="keys keys-only"><kbd>B</kbd> バック　<kbd>F</kbd> 前向き　<kbd>Esc</kbd> やめる</p>
   </div>
 </div>
 
@@ -670,8 +699,9 @@ function renderBadges(){
   el.innerHTML = ['normal', 'hard'].filter(k => badges[k]).map(k => `<span class="badgeChip" title="${BADGES[k].desc}">${badgeSvg(k)}${BADGES[k].name}</span>`).join('');
 }
 // ステージごとの過去最高得点 { normal:{ 1:95, ... }, hard:{ ... } }
-let bestScores = { normal:{}, hard:{} };
-try { const b = JSON.parse(localStorage.getItem('bestScores')); if (b) bestScores = { normal:{ ...b.normal }, hard:{ ...b.hard } }; } catch(e) {}
+// challenge：挑戦モードの最高記録 { best: クリアした一番大きい番号 }
+let bestScores = { normal:{}, hard:{}, challenge:{} };
+try { const b = JSON.parse(localStorage.getItem('bestScores')); if (b) bestScores = { normal:{ ...b.normal }, hard:{ ...b.hard }, challenge:{ ...b.challenge } }; } catch(e) {}
 const bestOf = (set, n) => bestScores[set][n];
 // 記録して、前の最高得点を返す（初めてなら undefined）
 function recordBest(set, n, score){
@@ -687,12 +717,43 @@ function earnBadge(set){
   if (first) { badges[set] = new Date().toISOString().slice(0, 10); try { localStorage.setItem('badges', JSON.stringify(badges)); } catch(e) {} renderBadges(); }
   return first;
 }
-const curStage = () => stageNo ? SETS[stageSet][stageNo - 1] : null;
+const curStage = () => !stageNo ? null : stageSet === 'challenge' ? chalStage : SETS[stageSet][stageNo - 1];
 const stageX = () => (curStage() && curStage().x) || {};
-const stageLabel = (set, n) => (set === 'hard' ? 'ハード ' : 'ステージ ') + n;
+const stageLabel = (set, n) => (set === 'hard' ? 'ハード ' : set === 'challenge' ? '挑戦 ' : 'ステージ ') + n;
+const inChallenge = () => stageSet === 'challenge' && !!stageNo;
 function enterStage(set, n){
   if (!stageFree) stageFree = Object.fromEntries(STAGE_KEYS.map(k => [k, S[k]]));
-  stageSet = set; stageNo = n; for (const k of STAGE_KEYS) S[k] = SETS[set][n - 1][k];
+  stageSet = set; stageNo = n;
+  const c = set === 'challenge' ? chalStage : SETS[set][n - 1];
+  for (const k of STAGE_KEYS) S[k] = c[k];
+}
+// ---------------- 挑戦モード ----------------
+// ランダムな配置で、1番（ガラガラの駐車場）からだんだん難しくなる。60点以上・接触なしでクリアすると次へ、失敗したら終わり。
+// 混み具合・枠の狭さ・車の大きさ・奥の枠が段々きびしくなり、15番からはノーマルの最難関と同じ条件で配置だけ変わる（歩行者や動く車は出さない）
+let chalStage = null;
+function challengeStage(n){
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+  const mode = n === 1 ? 'either' : n <= 3 ? pick(['either', 'back', 'front']) : pick(['back', 'back', 'front', 'either', 'parallel']);
+  const crowd = n <= 2 ? 'empty' : n <= 5 ? 'normal' : n <= 9 ? 'busy' : 'full';
+  const width = n <= 3 ? 'wide' : n <= 10 ? 'std' : 'narrow';
+  const car = n <= 5 ? 'std' : n <= 11 ? (Math.random() < (n - 5)/7 ? 'van' : 'std') : 'van';
+  const slot = n <= 7 ? 'any' : n <= 11 ? pick(['any', 'end2']) : n <= 14 ? pick(['end2', 'end']) : 'end';
+  const c = { task:'park', mode, crowd, car, width, slot, x: {} };
+  c.name = n === 1 ? 'ガラガラの駐車場' : stageDesc(c).replace(/^入庫・/, '');
+  return c;
+}
+const chalBest = () => +bestScores.challenge.best || 0;
+// 途中で終わった挑戦の続き（次に挑戦する番号）。ぶつけたり60点未満だったりして終わったら消す。1番からのときも消す
+const chalRun = () => +bestScores.challenge.run || 0;
+function saveChalRun(n){
+  if (n > 1) bestScores.challenge.run = n; else delete bestScores.challenge.run;
+  try { localStorage.setItem('bestScores', JSON.stringify(bestScores)); } catch(e) {}
+}
+function startChallenge(n){
+  saveChalRun(n);
+  chalStage = challengeStage(n);
+  enterStage('challenge', n); beginPlay();
+  track('challenge_start', { stage:n });
 }
 function leaveStage(){ if (stageFree) Object.assign(S, stageFree); stageFree = null; stageNo = 0; }
 function stageDesc(c){
@@ -1252,26 +1313,39 @@ function handleKey(code){
     return;
   }
   if (game === 'menu') { if (code === 'Enter') menuStart(); else if (code === 'Escape') closeMenu(); return; }
+  if (demoPickOpen) {
+    if (code === 'KeyB' || code === 'ArrowLeft' || code === 'Enter') pickDemo('back');
+    else if (code === 'KeyF' || code === 'ArrowRight') pickDemo('front');
+    else if (code === 'Escape' || code === 'KeyO') closeDemoPick();
+    return;
+  }
   if (game === 'demo') {
     if (code === 'KeyR' || code === 'Enter') resetPlayer();
-    else if (code === 'KeyO') startDemo();
+    else if (code === 'KeyO') requestDemo();
     else if (code === 'KeyC') camIdx = (camIdx + 1) % CAM_MODES.length;
     else if (code === 'KeyN') buildLevel();
     else if (code === 'Escape') openMenu();
     return;
   }
   if (game === 'result') {
-    if (code === 'KeyO') startDemo();
-    else if (code === 'Enter' && !$('#rNext').hidden) startStage(stageSet, stageNo + 1);
+    if (inChallenge()) {
+      if (code === 'Enter' && !$('#rNext').hidden) goNext();
+      else if ((code === 'Enter' || code === 'KeyR') && !$('#rRetry').hidden) startChallenge(1);
+      else if (code === 'Escape') openMenu();
+      return;
+    }
+    if (code === 'KeyO') requestDemo();
+    else if (code === 'Enter' && !$('#rNext').hidden) goNext();
     else if (code === 'Enter' || code === 'KeyR') resetPlayer();
     else if (code === 'KeyN') buildLevel();
     else if (code === 'Escape') openMenu();
     return;
   }
+  if (inChallenge() && (code === 'KeyR' || code === 'KeyO' || code === 'KeyN')) { showToastInfo('挑戦中は、やり直し・お手本・別の配置は使えません'); return; }
   switch (code) {
     case 'KeyC': camIdx = (camIdx + 1) % CAM_MODES.length; break;
     case 'KeyR': resetPlayer(); break;
-    case 'KeyO': startDemo(); break;
+    case 'KeyO': requestDemo(); break;
     case 'KeyN': buildLevel(); break;
     case 'Escape': openMenu(); break;
     case 'Enter': tryFinish(); break;
@@ -1466,6 +1540,7 @@ function pollGamepad(dt){
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
   if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
   if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
+  if (demoPickOpen) { if (edge(14)) pickDemo('back'); if (edge(15)) pickDemo('front'); if (edge(0)) closeDemoPick(); }   // 十字キー左右で選ぶ、B でやめる
   pad.prev = gp.buttons.map((_, i) => b(i));
 }
 function rumble(ms = 180, strong = 0.8){
@@ -1622,7 +1697,7 @@ function physics(dt){
     const fresh = !(st.freeDist < 0.3) || hit !== st.lastHit;
     if (!st.touching && fresh && (hit === 'body' || hit === 'curb')) { st.freeDist = 0; st.lastHit = hit; }
     if (!st.touching && fresh) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); }
+      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); if (inChallenge()) challengeCrash(); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1727,11 +1802,25 @@ function showResult(ev){
   if (kiri > Math.max(1, free)) tips.push('ハンドルを切り始める位置を少し変えると、切り返しが減ります。');
   return finishResult(score, rows, tips, '駐車完了');
 }
+// 挑戦モード：ぶつけた時点で終わり（その場で結果画面）
+function challengeCrash(){
+  if (game !== 'play') return;
+  game = 'result';
+  st.v = 0;
+  finishResult(0, [['接触', `${st.hits} 回（0点）`, 100]], ['当たりそうなときは一度止まって、ミラーで確認してから切り返しましょう。'], '');
+}
 function finishResult(score, rows, tips, title){
   score = Math.max(0, Math.round(score));
   stageCleared = false;
-  const list = SETS[stageSet];
-  if (stageNo) {
+  const list = SETS[stageSet] || [], chal = inChallenge();
+  let chalPrev = 0;
+  if (chal) {
+    stageCleared = score >= STAGE_CLEAR && st.hits === 0;
+    chalPrev = chalBest();
+    if (stageCleared && stageNo > chalPrev) bestScores.challenge.best = stageNo;
+    saveChalRun(stageCleared ? stageNo + 1 : 0);   // クリアしたら次の番号から続けられるように。終わったら続きは消す
+    title = stageCleared ? `挑戦 ${stageNo} クリア！` : stageNo > 1 ? `挑戦おわり：${stageNo - 1} 番までクリア` : '挑戦おわり：1 番をクリアできませんでした';
+  } else if (stageNo) {
     stageCleared = score >= STAGE_CLEAR && st.hits === 0;
     if (stageCleared) {
       title = stageNo === list.length ? (stageSet === 'hard' ? 'ハード 全ステージクリア！' : '全ステージクリア！') : `${stageLabel(stageSet, stageNo)} クリア！`;
@@ -1752,7 +1841,12 @@ function finishResult(score, rows, tips, title){
   }
   // 過去最高得点
   $('#resBest').hidden = !stageNo;
-  if (stageNo) {
+  if (chal) {
+    const best = chalBest(), isNew = best > chalPrev && chalPrev > 0;
+    $('#resBest').textContent = isNew ? `最高記録を更新！（これまで ${chalPrev} 番）` : best ? `最高記録：${best} 番` : '';
+    $('#resBest').hidden = !best;
+    $('#resBest').classList.toggle('new', isNew);
+  } else if (stageNo) {
     const prev = recordBest(stageSet, stageNo, score);
     const isNew = prev !== undefined && score > prev;
     $('#resBest').textContent = isNew ? `自己ベスト更新！（これまで ${prev}点）` : prev === undefined ? '' : `過去最高得点：${prev}点`;
@@ -1762,8 +1856,13 @@ function finishResult(score, rows, tips, title){
   track(stageNo ? 'stage_result' : 'free_result', stageNo
     ? { set:stageSet, stage:stageNo, score, cleared: stageCleared ? 1 : 0, hits: st.hits }
     : { score, mode:S.mode, task:S.task, hits: st.hits });
-  const hasNext = stageCleared && stageNo < list.length;
+  const hasNext = stageCleared && (chal || stageNo < list.length);
   $('#rNext').hidden = !hasNext;
+  $('#rNext').textContent = chal ? `次へ（挑戦 ${stageNo + 1}）` : '次のステージへ';
+  // 挑戦モード：同じ配置のやり直し・別の配置・お手本はなし。失敗したら「最初から挑戦」
+  $('#rRetry').hidden = chal && stageCleared;
+  $('#rRetry').textContent = chal ? '最初から挑戦' : 'もう一度';
+  $('#rNew').hidden = $('#rDemo').hidden = chal;
   $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
   const rank = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : 'C';
@@ -1807,7 +1906,7 @@ function openMenu(){
   $('#menu').style.pointerEvents = 'none';
   clearTimeout(openMenu.t); openMenu.t = setTimeout(() => { $('#menu').style.pointerEvents = ''; }, 450);
   if (replay) { const f = replay.frames[replay.frames.length - 1]; endReplay(); st.x = f[0]; st.z = f[1]; st.h = f[2]; st.delta = f[3]; }
-  syncMenu(); syncStageMenu();
+  syncMenu(); syncStageMenu(); syncChalMenu();
   // 続きから：メニューを開く前の画面に戻る（起動直後のメニューでは出さない）
   $('#resumeBtn').hidden = !menuFrom || menuFrom === 'menu';
   $('#resumeBtn').textContent = IS_TOUCH ? '続きから' : '続きから（Esc）';
@@ -1866,10 +1965,11 @@ function beginPlay(){
 $('#startBtn').addEventListener('click', startGame);
 // メニューのタブ（ステージ／自由練習）。選んだタブは覚えておく
 let menuTab = 'stage';
-try { if (localStorage.getItem('menuTab') === 'free') menuTab = 'free'; } catch(e) {}
+try { const t = localStorage.getItem('menuTab'); if (t === 'free' || t === 'challenge') menuTab = t; } catch(e) {}
 function setMenuTab(t){
   menuTab = t;
-  $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free';
+  $('#stagePane').hidden = t !== 'stage'; $('#freePane').hidden = t !== 'free'; $('#chalPane').hidden = t !== 'challenge';
+  syncChalMenu();
   document.querySelectorAll('#menuTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   try { localStorage.setItem('menuTab', t); } catch(e) {}
   syncBuyBtn();
@@ -1884,7 +1984,17 @@ document.querySelectorAll('#menuTabs button').forEach(b => b.addEventListener('c
 setMenuTab(menuTab);
 // メニューで Enter / ＋：いま開いているタブのスタート
 const hardLocked = () => selSet === 'hard' && !hardOwned;
-const menuStart = () => menuTab === 'free' ? startGame() : !hardLocked() && startStage(selSet, sel[selSet]);
+const menuStart = () => menuTab === 'free' ? startGame() : menuTab === 'challenge' ? startChallenge(chalRun() || 1) : !hardLocked() && startStage(selSet, sel[selSet]);
+$('#chalBtn').addEventListener('click', () => startChallenge(1));
+$('#chalResume').addEventListener('click', () => startChallenge(chalRun() || 1));
+function syncChalMenu(){
+  const b = chalBest(), run = chalRun();
+  $('#chalResume').hidden = !run;
+  $('#chalResume').textContent = `続きから（挑戦 ${run}）`;
+  $('#chalBtn').textContent = run ? '最初から挑戦' : '挑戦スタート';
+  $('#chalRec').textContent = b ? `最高記録：${b} 番までクリア` : '最高記録：まだ記録なし';
+  $('#chalRec').classList.toggle('none', !b);
+}
 $('#stageBtn').addEventListener('click', () => {
   if (!hardLocked()) return startStage(selSet, sel[selSet]);
   if (inApp()) { track('purchase_tap', { from:'stage' }); appPost({ type:'buy' }); }   // アプリ版：広告削除＋ハード解放を購入
@@ -1895,7 +2005,8 @@ $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocke
 document.querySelectorAll('#stageSets button').forEach(b => b.addEventListener('click', () => {
   selSet = b.dataset.set; try { localStorage.setItem('stageSet', selSet); } catch(e) {} syncStageMenu();
 }));
-$('#rNext').addEventListener('click', () => startStage(stageSet, Math.min(SETS[stageSet].length, stageNo + 1)));
+$('#rNext').addEventListener('click', goNext);
+function goNext(){ if (inChallenge()) startChallenge(stageNo + 1); else startStage(stageSet, Math.min(SETS[stageSet].length, stageNo + 1)); }
 function syncStageMenu(){
   const list = SETS[selSet], locked = hardLocked();
   sel[selSet] = Math.max(1, Math.min(unlocked[selSet], sel[selSet]));
@@ -1920,9 +2031,9 @@ function syncStageMenu(){
 syncStageMenu();
 renderBadges();
 $('#resumeBtn').addEventListener('click', closeMenu);
-$('#rRetry').addEventListener('click', resetPlayer);
+$('#rRetry').addEventListener('click', () => inChallenge() ? startChallenge(1) : resetPlayer());
 $('#rNew').addEventListener('click', buildLevel);
-$('#rDemo').addEventListener('click', startDemo);
+$('#rDemo').addEventListener('click', requestDemo);
 $('#rMenu').addEventListener('click', openMenu);
 
 function updateHUD(ev, son){
@@ -1952,7 +2063,7 @@ function updateHUD(ev, son){
   if ($('#rearView').classList.contains('noavm') === S.avm) { $('#rearView').classList.toggle('noavm', !S.avm); resize(); }
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
-  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
+  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' + (demoPref ? `（${demoPref === 'front' ? '前向き' : 'バック'}）` : '') : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
   else if (game !== 'play') showMsg('', '');
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
@@ -2054,8 +2165,9 @@ function planDemoM(MARGIN){
     let ih = Math.round(h/A) % NH; if (ih < 0) ih += NH;
     return ((ix*NZ + iz)*NH + ih)*2 + (dir > 0 ? 0 : 1);
   };
-  // 「どちらでも」はバック・前向きの両方を目標にして、切り返しの少ない方を選ぶ
-  const ideals = exit ? [] : level.anyDir ? [idealPose(false), idealPose(true)] : [idealPose()];
+  // 「どちらでも」はバック・前向きの両方を目標にして、切り返しの少ない方を選ぶ（お手本で向きを選んだときはその向きだけ）
+  const fr = !exit && level.anyDir && demoPref ? demoPref === 'front' : null;
+  const ideals = exit ? [] : level.anyDir ? (fr === null ? [idealPose(false), idealPose(true)] : [idealPose(fr)]) : [idealPose()];
   const strict = (x, z, h, d) => {
     if (exit) return pointIn(level.goal, x + Math.sin(h)*C.cOff, z + Math.cos(h)*C.cOff) && Math.abs(wrapAng(h - level.goalH)) < 6*D2R;
     return ideals.some(I => I.d === d && Math.hypot(x - I.x, z - I.z) < 0.22 && Math.abs(wrapAng(h - I.h)) < 3*D2R);
@@ -2093,7 +2205,7 @@ function planDemoM(MARGIN){
   //   出庫：前向きに止めた車はバックで、後ろ向きに止めた車は前進で動き出し、最後は前進で出口へ
   //   どちらでも：前進で始め、バックで入れて終わるか前進で入れて終わる
   const firstDirs = !exit ? [1] : level.type === 'bay' ? [level.exitFwd ? 1 : -1] : [1, -1];
-  const lastOk = d => exit ? d === 1 : level.anyDir ? true : d === (S.mode === 'front' ? 1 : -1);
+  const lastOk = d => exit ? d === 1 : level.anyDir ? (fr === null || d === (fr ? 1 : -1)) : d === (S.mode === 'front' ? 1 : -1);
   for (const d of firstDirs) push(hEst(s0.x, s0.z, s0.h), add(s0.x, s0.z, s0.h, d, 0, -1, 0));
   let found = -1, fallback = -1, pops = 0;
   while (heapC.length && pops < 1500000) {
@@ -2129,9 +2241,23 @@ function planDemoM(MARGIN){
   for (const p of path) { const q = out[out.length - 1]; if (q && q.x === p.x && q.z === p.z && q.h === p.h) { q.d = p.d; continue; } out.push(p); }
   return out;
 }
-let demo = null;
-function startDemo(){
-  track('demo_start', stageNo ? { set:stageSet, stage:stageNo } : {});
+let demo = null, demoPref = null, demoPickOpen = false;
+// お手本ボタン：「どちらでも」の入庫では、バックと前向きのどちらのお手本を見るか選ぶ
+function requestDemo(){
+  if (inChallenge()) return;
+  if (level.task !== 'exit' && level.anyDir) {
+    releaseTouchInputs();
+    demoPickOpen = true; $('#demoPick').classList.remove('off');
+  } else startDemo(null);
+}
+function closeDemoPick(){ demoPickOpen = false; $('#demoPick').classList.add('off'); }
+function pickDemo(dir){ closeDemoPick(); startDemo(dir); }
+$('#dpBack').addEventListener('click', () => pickDemo('back'));
+$('#dpFront').addEventListener('click', () => pickDemo('front'));
+$('#dpCancel').addEventListener('click', closeDemoPick);
+function startDemo(pref = null){
+  demoPref = pref;
+  track('demo_start', stageNo ? { set:stageSet, stage:stageNo, dir: pref || '' } : { dir: pref || '' });
   resetPlayer();
   game = 'demo';
   setTimeout(() => {
@@ -2422,7 +2548,7 @@ if (APP) {
       }
       // 過去最高得点：ステージごとに高い方
       const cb = obj(c.bestScores);
-      for (const set of ['normal', 'hard']) for (const n in (cb[set] || {})) {
+      for (const set of ['normal', 'hard', 'challenge']) for (const n in (cb[set] || {})) {
         const v = +cb[set][n]; if (v >= 0 && !(bestScores[set][n] >= v)) bestScores[set][n] = v;
       }
       localStorage.setItem('bestScores', JSON.stringify(bestScores));
