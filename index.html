@@ -1372,7 +1372,7 @@ function buildLevel(){
   $('#sStage').hidden = !stageNo; $('#sStage').textContent = stageNo ? stageLabel(stageSet, stageNo) : '';
   $('#sMode').textContent = level.task === 'exit'
     ? { back:'バックで出庫', front:'前進で出庫', either:'出庫', parallel:'縦列から出庫' }[S.mode]
-    : { back:'バックで駐車', front:'前向きで駐車', either:'どちらでもOK', parallel:'縦列駐車' }[S.mode];
+    : { back:'バックで駐車', front:'前向きで駐車', either:'向き自由で駐車', parallel:'縦列駐車' }[S.mode];
   document.body.classList.toggle('parallel', S.mode === 'parallel');
   document.body.classList.toggle('exitTask', level.task === 'exit');
   zoom = level.task === 'exit' ? 22 : 17;   // 出庫は出口まで見えるように少し引きで開始
@@ -2248,9 +2248,26 @@ $('#promoChip').addEventListener('click', () => { track('purchase_tap', { from:'
 $('#stageGrid').addEventListener('click', e => { if (e.target.closest('#hardBuy')) return $('#stageBtn').click(); const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return; sel[selSet] = +b.dataset.n; syncStageMenu(); });
 $('#stagePrev').addEventListener('click', () => { sel[selSet] = Math.max(1, sel[selSet] - 1); syncStageMenu(); });
 $('#stageNext').addEventListener('click', () => { sel[selSet] = Math.min(unlocked[selSet], sel[selSet] + 1); syncStageMenu(); });
-document.querySelectorAll('#stageSets button').forEach(b => b.addEventListener('click', () => {
-  selSet = b.dataset.set; try { localStorage.setItem('stageSet', selSet); } catch(e) {} syncStageMenu();
-}));
+function setStageSet(set, dir){
+  if (set === selSet) return;
+  selSet = set; try { localStorage.setItem('stageSet', selSet); } catch(e) {} syncStageMenu();
+  const g = $('#stageGrid');   // 左右どちらから来たかが分かるように、一覧を少し横から滑り込ませる
+  if (dir && g.animate) g.animate([{ transform:`translateX(${dir * 36}px)`, opacity:0.2 }, { transform:'none', opacity:1 }], { duration:220, easing:'ease-out' });
+}
+document.querySelectorAll('#stageSets button').forEach(b => b.addEventListener('click', () => setStageSet(b.dataset.set, b.dataset.set === 'hard' ? 1 : -1)));
+// ステージ一覧を左右にスワイプして、ノーマルとハードを切り替える（左へ払うとハード、右へ払うとノーマル）
+{
+  let sx = null, sy = 0;
+  $('#stagePane').addEventListener('touchstart', e => { if (e.touches.length !== 1) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive:true });
+  $('#stagePane').addEventListener('touchend', e => {
+    if (sx === null) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0 && selSet === 'normal') setStageSet('hard', 1);
+    else if (dx > 0 && selSet === 'hard') setStageSet('normal', -1);
+  }, { passive:true });
+  $('#stagePane').addEventListener('touchcancel', () => { sx = null; }, { passive:true });
+}
 $('#rNext').addEventListener('click', goNext);
 function goNext(){ if (inChallenge()) startChallenge(stageNo + 1); else startStage(stageSet, Math.min(SETS[stageSet].length, stageNo + 1)); }
 function syncStageMenu(){
