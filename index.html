@@ -500,7 +500,7 @@ body.exitTask #tDone{display:none}
   <button class="tbtn" data-act="KeyC">視点</button>
   <button class="tbtn" data-act="Enter" id="tDone">完了</button>
 </div>
-<div id="rotateHint">横向きのほうが遊びやすいです</div>
+<div id="rotateHint">横向きでも遊べます</div>
 
 <div class="overlay" id="menu">
   <div class="card">
@@ -1496,7 +1496,7 @@ $('#gearbox').appendChild($('#tSonar'));
 if (IS_TOUCH) document.body.classList.add('touch');
 const touchSteer = { active:false, id:null, lastAng:0, cwDeg:0 };
 let slowToggle = false;
-// 「横向きのほうが遊びやすいです」：スマホを縦向きでスタートしたとき、最初の2回だけ4秒間出す（タップで消える）
+// 「横向きでも遊べます」：スマホを縦向きでスタートしたとき、最初の2回だけ4秒間出す（タップで消える）
 // iPad など画面の大きい端末は縦でも十分遊べるので出さない
 function showRotateHint(){
   if (!IS_TOUCH || innerHeight <= innerWidth || Math.min(innerWidth, innerHeight) >= 600) return;
