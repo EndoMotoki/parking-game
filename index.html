@@ -354,6 +354,12 @@ body.touch .keys-only{display:none}
 #tPause svg{width:18px;height:18px;fill:currentColor}
 #tDone{background:rgba(240,138,60,.92);color:#16110c}
 #tDone.down{background:#ffb07a}
+#tDone.retry{background:rgba(217,74,74,.92);color:#fff}
+#tDone.retry.down{background:#ef5b5b}
+/* 完了ボタンは、枠にきちんと入ったとき（枠が緑になったとき）だけ出す。並びがずれないよう場所は空けておく */
+#tDone{visibility:hidden}
+#tDone.ready{visibility:visible;animation:donePop .35s ease-out}
+@keyframes donePop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 #pauseMenu{z-index:30;background:rgba(8,9,11,.55)}
 #pauseMenu .card{width:min(320px,100%);text-align:center}
 #pauseMenu h3{margin:0;font-size:16px}
@@ -420,7 +426,7 @@ body.driver:not(.touch) #rearView{left:auto;right:12px;transform:none;--bmw:min(
 #mirrorPad .pad button{font-size:14px;padding:0}
 #mirrorPad .pad .rst{font-size:10px;color:var(--muted)}
 #mirrorPad .close{margin-top:8px;padding:4px 14px;font-size:12px}
-body.exitTask #tDone{display:none}
+body.exitTask #tDone:not(.retry){display:none}
 </style>
 </head>
 <body>
@@ -3088,6 +3094,13 @@ function loop(t){
   const mode = updateScene(dt);
   const ev = evaluate();
   if (game === 'play' && ev.exit && ev.done) showResult(ev);
+  // ぶつけたら（0点なので）完了の代わりに「やり直し」を出す。挑戦モードはぶつけた時点で終わるので出さない
+  const tDone = $('#tDone'), crashed = game === 'play' && st.hits > 0 && !inChallenge();
+  if (crashed !== tDone.classList.contains('retry')) {
+    tDone.classList.toggle('retry', crashed);
+    tDone.dataset.act = crashed ? 'KeyR' : 'Enter'; tDone.textContent = crashed ? 'やり直し' : '完了';
+  }
+  tDone.classList.toggle('ready', crashed || (game === 'play' && !ev.exit && ev.ready));
   const son = sonar();
   updateBackSound(dt, Math.min(son[3], son[4], son[5]));
   // センサー音
