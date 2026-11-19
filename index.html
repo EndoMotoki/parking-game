@@ -1131,10 +1131,12 @@ function stepMovers(dt){
       if ((m.wait -= dt) > 0) continue;
       m.x = m.lane.dir > 0 ? m.lane.x0 : m.lane.x1;
       if (blockedBy(mkRect(m.x, m.z, m.hw + 0.3, m.hl + 1.5, m.h), m)) { m.wait = 1; continue; }   // 出てくる場所がふさがっていたら少し待つ
+      if (Math.hypot(st.x - m.x, st.z - m.z) < (m.kind === 'car' ? 12 : 7)) { m.wait = 1; continue; }   // 自分の車のすぐ近くには出てこない（避けようがないので）
       m.active = true; m.v = m.vmax*0.8; m.stuck = 0; m.mesh.visible = true;
     }
     const look = m.v*m.v/(2*m.brake) + m.gap;
-    const probe = mkRect(m.x + m.lane.dir*(m.hl + look/2), m.z, m.hw + 0.15, look/2, m.h);
+    // 前方の確認は横にも少し広く：自分の車の鼻先や後ろが通路にはみ出してきたら止まる
+    const probe = mkRect(m.x + m.lane.dir*(m.hl + look/2), m.z, m.hw + (m.kind === 'car' ? 0.6 : 0.4), look/2, m.h);
     const blocked = blockedBy(probe, m);
     m.v = blocked ? Math.max(0, m.v - m.brake*dt) : Math.min(m.vmax, m.v + m.acc*dt);
     // 長く止められたら、別の道へ行った（いなくなる）ことにする：待ち合いで動けなくならないように
@@ -1142,7 +1144,8 @@ function stepMovers(dt){
     const nx = m.x + m.lane.dir*m.v*dt;
     if (overlap(mkRect(nx, m.z, m.hw, m.hl, m.h), pr)) {
       m.v = 0;
-      if (!m.touching && game === 'play') { m.touching = true; if (!st.touching) moverHit(); }
+      // 止まっている自分の車に相手が当たってきたときは、接触に数えない（相手がその場で止まる）
+      if (!m.touching && game === 'play' && Math.abs(st.v) > 0.05) { m.touching = true; if (!st.touching) moverHit(); }
     } else { m.touching = false; m.x = nx; }
     const out = m.lane.dir > 0 ? m.x > m.lane.x1 : m.x < m.lane.x0;
     if (out || m.stuck > (m.kind === 'car' ? 6 : 8)) { m.active = false; m.mesh.visible = false; m.wait = rand(m.respawn[0], m.respawn[1]); continue; }
@@ -1231,10 +1234,12 @@ function buildBay(){
   }
   // 通路を走る車（左側通行：+x 向きは手前側）と、枠の前を歩く人
   const lx0 = xMin + 1.5, lx1 = xMax - 1.5, lane = Math.min(1.4, aisle/2 - 1.1);
-  for (let k = 0; k < (X.traffic || 0); k++) for (const dir of [1, -1])
-    addMover({ kind:'car', lane:{ z: -dir*lane, dir, x0: lx0, x1: lx1 }, vmax: 2.8*(X.fast || 1), acc: 1.2, brake: 4, gap: 1.6, delay: rand(1, 9) + k*7, respawn:[3, 10] });
+  // 一番奥・奥から2番目（行き止まり）では、壁の側から車や人が湧いて出ないように、入口の側からだけ来る。
+  // 車は目標の枠のだいぶ手前で別の列へ曲がった（いなくなる）ことにする
+  for (let k = 0; k < (X.traffic || 0); k++) for (const dir of deadEnd ? [1] : [1, -1])
+    addMover({ kind:'car', lane:{ z: -dir*lane, dir, x0: lx0, x1: deadEnd ? Math.min(lx1, tx - 12) : lx1 }, vmax: 2.8*(X.fast || 1), acc: 1.2, brake: 4, gap: 1.6, delay: rand(1, 9) + k*7, respawn:[3, 10] });
   for (let k = 0; k < (X.peds || 0); k++) {
-    const dir = Math.random() < 0.5 ? 1 : -1, row = Math.random() < 0.5 ? 1 : -1;
+    const dir = deadEnd || Math.random() < 0.5 ? 1 : -1, row = Math.random() < 0.5 ? 1 : -1;
     addMover({ kind:'ped', lane:{ z: row*(aisle/2 - 0.45), dir, x0: lx0, x1: lx1 }, vmax: 1.1, acc: 2, brake: 6, gap: 0.5, delay: rand(0, 6) + k*4, respawn:[2, 7] });
   }
   // 「どちらでも」は、バックでも前向きでも入れてよい（判定は anyDir で前後どちら向きも可）
