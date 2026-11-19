@@ -2667,7 +2667,8 @@ function buildResultMarks(){
   if (level.task !== 'exit') {
     // 理想の止め位置（どちらでもOKのときは、止めた向きに近い方）
     const cands = level.anyDir ? [idealPose(false), idealPose(true)] : [idealPose()];
-    const I = cands.reduce((a, b) => Math.abs(wrapAng(st.h - a.h)) <= Math.abs(wrapAng(st.h - b.h)) ? a : b);
+    const fh = replay ? replay.frames[replay.frames.length - 1][2] : st.h;
+    const I = cands.reduce((a, b) => Math.abs(wrapAng(fh - a.h)) <= Math.abs(wrapAng(fh - b.h)) ? a : b);
     g.add(carOutline(I, 0x5ccf8a, 0.95, 6));
   }
 }
@@ -2675,8 +2676,8 @@ function buildResultMarks(){
 function compareWithDemo(){
   const btn = $('#rCompare'); if (btn.disabled || !replay) return;
   btn.disabled = true;
-  const frames = replay.frames;
-  const finalFront = level.type === 'bay' && (level.anyDir ? Math.abs(wrapAng(st.h - level.reqH)) > Math.PI/2 : S.mode === 'front');
+  const frames = replay.frames, finalH = frames[frames.length - 1][2];   // リプレイ中は st が動いているので、止めたときの向きを使う
+  const finalFront = level.type === 'bay' && (level.anyDir ? Math.abs(wrapAng(finalH - level.reqH)) > Math.PI/2 : S.mode === 'front');
   const tp = textbookPath(finalFront);
   if (!tp) { btn.textContent = 'この配置では比べられません'; return; }
   btn.textContent = '目安を表示中';
