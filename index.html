@@ -71,6 +71,7 @@ body.parallel #stats .curbStat{display:inline}
 #toast{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:9;font-size:15px;font-weight:600;
   background:rgba(14,16,20,.8);color:var(--bad);padding:8px 16px;border-radius:6px;opacity:0;transition:opacity .4s;pointer-events:none}
 #toast.show{opacity:1;transition:none}
+#toast.goal{color:#fff;font-size:17px;padding:10px 20px}
 #replayLabel{display:none;position:fixed;left:calc(14px + env(safe-area-inset-left));top:calc(12px + var(--sat));z-index:21;background:var(--hud);border-radius:6px;padding:5px 10px;
   font-size:12px;color:var(--muted)}
 body.resultView #replayLabel{display:flex;gap:10px}
@@ -1371,6 +1372,17 @@ function resetPlayer(){
   game = 'play';
   $('#result').classList.add('off');
   showMsg('', '');
+  setTimeout(goalToast, 0);
+}
+// 始めたとき（やり直しを含む）に、何をするかを画面の真ん中に少しのあいだ出す（ぶつけたときと同じ形の表示）
+function goalToast(){
+  if (game !== 'play' || !$('#menu').classList.contains('off')) return;
+  const text = level.task === 'exit'
+    ? { back:'バックで出庫しよう', front:'前進で出庫しよう', either:'出庫しよう', parallel:'縦列から出庫しよう' }[S.mode]
+    : { back:'バックで駐車しよう', front:'前向きで駐車しよう', either:'前向きでもバックでもOK', parallel:'縦列駐車しよう' }[S.mode];
+  if (!text) return;
+  const t = $('#toast'); t.textContent = text; t.classList.add('show', 'goal'); clearTimeout(toastTO);
+  toastTO = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { if (!t.classList.contains('show')) t.classList.remove('goal'); }, 450); }, 1600);
 }
 function buildLevel(){
   clearWorld();
@@ -2012,7 +2024,7 @@ function showToastInfo(t){ infoText = t; infoUntil = performance.now() + 1800; }
 let toastTO;
 function flashHit(text){
   const f = $('#flash'); f.classList.add('hit'); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove('hit')));
-  const t = $('#toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTO); toastTO = setTimeout(() => t.classList.remove('show'), 700);
+  const t = $('#toast'); t.textContent = text; t.classList.remove('goal'); t.classList.add('show'); clearTimeout(toastTO); toastTO = setTimeout(() => t.classList.remove('show'), 700);
 }
 // メニューを開いた元の画面。Esc でそこへ戻る（最初のメニューは null）
 let menuFrom = null, menuSnap = '';
