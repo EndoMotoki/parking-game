@@ -225,6 +225,18 @@ details.more[open] summary::before{content:"− "}
 #breakdown td:last-child{text-align:right;width:44px;color:var(--muted);font-variant-numeric:tabular-nums}
 #breakdown .neg{color:#e88}
 #tips{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7}
+#tips b{color:var(--text)}
+#rCompare{display:block;margin:8px auto 0;padding:6px 14px;font:inherit;font-size:12px;font-weight:600;color:#ffe27a;background:#2a2f36;border:1px solid #4a515a;border-radius:16px;cursor:pointer}
+#rCompare[hidden]{display:none}
+#rCompare:disabled{opacity:.7;cursor:default}
+#cue{position:fixed;left:50%;transform:translateX(-50%);z-index:8;display:none;max-width:min(560px,92vw);text-align:center;
+  background:rgba(14,16,20,.82);color:#ffe27a;font-size:13px;font-weight:600;padding:6px 12px;border-radius:8px;pointer-events:none;
+  bottom:calc(14px + env(safe-area-inset-bottom))}
+#cue.on{display:block}
+body.touch #cue{font-size:12px;max-width:calc(100vw - 2*min(19vh,80px) - 2*min(38vh,160px) - 40px)}
+body.touch.portrait #cue{bottom:auto;max-width:94vw;font-size:11px;padding:4px 10px;top:calc(8px + var(--sat) + 18vw + 44px)}
+body.touch.portrait.cueOn #msg{visibility:hidden}   /* 縦向きは、ステージの説明の場所に目安を出す */
+body.resultView #cue{display:none}
 #result .card{width:min(380px,100%);display:flex;flex-direction:column;overflow:hidden}
 /* 画面が低いときは点数の内訳だけスクロールして、下のボタンはいつも見えるようにする */
 #resBody{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
@@ -452,6 +464,7 @@ body.exitTask #tDone{display:none}
 </div>
 
 <div id="msg" style="opacity:0"></div>
+<div id="cue"></div>
 
 <div id="cockpit">
   <div id="cockpitInfo"></div>
@@ -566,6 +579,7 @@ body.exitTask #tDone{display:none}
         <label><input type="checkbox" id="o-mirrorTilt" checked> リバース連動ミラー</label>
         <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
         <label><input type="checkbox" id="o-sound" checked> センサー音</label>
+        <label><input type="checkbox" id="o-turnGuide"> ハンドルを切る目安（自由練習の入庫）</label>
       </div>
     </details>
 
@@ -648,6 +662,7 @@ body.exitTask #tDone{display:none}
       <div id="resBest" hidden></div>
       <table id="breakdown"></table>
       <div id="tips"></div>
+      <button id="rCompare">目安と比べる</button>
     </div>
     <div class="btnrow">
       <button class="primary" id="rNext" hidden>次のステージへ</button>
@@ -713,7 +728,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'見下ろし（固定）', topRot:'見下ろし（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top',
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top', turnGuide:false,
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 // 「どちらでも」を追加したとき、それまで保存されていたバック／前向きは一度だけ「どちらでも」に切り替える
@@ -1125,7 +1140,7 @@ function clearMoversNear(area){
 }
 const activeMoverRects = () => movers.filter(m => m.active).map(moverRect);
 function moverHit(){
-  st.hits++; st.freeDist = 0; st.lastHit = 'body'; st.touching = true;
+  st.hits++; st.freeDist = 0; st.lastHit = 'body'; st.touching = true; markHit();
   rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square');
 }
 function stepMovers(dt){
@@ -1374,7 +1389,8 @@ let st = null;   // 車両状態（x,z は後軸中心）
 function resetPlayer(){
   const sp = level.spawn;
   st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, dirChanges:0, segDir:0, pendDist:0, shiftT:0, hits:0, curbs:0, touching:false,
-         time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[] };
+         time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[], hitPts:[], switchPts:[] };
+  guideIdx = 0;
   recT = 0;
   clearMoversNear(playerRect(st, 3));
   endReplay();
@@ -1392,7 +1408,7 @@ function goalToast(){
     : { back:'バックで駐車しよう', front:'前向きで駐車しよう', either:'前向きでもバックでもOK', parallel:'縦列駐車しよう' }[S.mode];
   if (!text) return;
   const t = $('#toast'); t.textContent = text; t.classList.add('show', 'goal'); clearTimeout(toastTO);
-  toastTO = setTimeout(() => { t.classList.remove('show'); setTimeout(() => { if (!t.classList.contains('show')) t.classList.remove('goal'); }, 450); }, 1600);
+  toastTO = setTimeout(() => { t.classList.remove('show'); }, 1600);
 }
 function buildLevel(){
   clearWorld();
@@ -1881,7 +1897,7 @@ function physics(dt){
     const fresh = !(st.freeDist < 0.3) || hit !== st.lastHit;
     if (!st.touching && fresh && (hit === 'body' || hit === 'curb')) { st.freeDist = 0; st.lastHit = hit; }
     if (!st.touching && fresh) {
-      if (hit === 'body') { st.hits++; rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); if (inChallenge()) challengeCrash(); }
+      if (hit === 'body') { st.hits++; markHit(); rumble(250, 1); flashHit('接触'); tone(90, 0.25, 0.25, 'square'); if (inChallenge()) challengeCrash(); }
       else if (hit === 'curb') { st.curbs++; rumble(150, 0.5); flashHit('縁石に接触'); tone(140, 0.15, 0.15, 'triangle'); }
       else if (impact > 0.05) tone(220, 0.08, 0.08, 'triangle'); // 輪止め
     }
@@ -1895,7 +1911,7 @@ function physics(dt){
     if (sg === st.segDir) st.pendDist = 0;
     else {
       st.pendDist += Math.abs(st.v) * dt;
-      if (st.pendDist >= 0.3) { if (st.segDir !== 0) st.dirChanges++; st.segDir = sg; st.pendDist = 0; }
+      if (st.pendDist >= 0.3) { if (st.segDir !== 0) { st.dirChanges++; st.switchPts.push([st.x, st.z, st.h]); } st.segDir = sg; st.pendDist = 0; }
     }
   }
 }
@@ -2047,6 +2063,7 @@ function finishResult(score, rows, tips, title){
   $('#rRetry').hidden = chal && stageCleared;
   $('#rRetry').textContent = chal ? '最初から挑戦' : 'もう一度';
   $('#rNew').hidden = $('#rDemo').hidden = chal;
+  $('#rCompare').hidden = chal || st.rec.length < 4 || level.task === 'exit'; $('#rCompare').disabled = false; $('#rCompare').textContent = '目安と比べる';
   $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
   const rank = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : 'C';
@@ -2056,6 +2073,7 @@ function finishResult(score, rows, tips, title){
   $('#breakdown').innerHTML = rows.map(([l, v, p]) => `<tr><td>${l}</td><td>${v}</td><td class="${p ? 'neg' : ''}">${p ? '−' + p : '±0'}</td></tr>`).join('');
   $('#tips').textContent = tips[0] || '';
   $('#result').classList.remove('off');
+  $('#toast').classList.remove('show');
   startReplay();
   tone(660, 0.15, 0.08); setTimeout(() => tone(880, 0.25, 0.08), 150);
 }
@@ -2245,13 +2263,13 @@ function syncMenu(){
   document.querySelectorAll('.opt[data-key]').forEach(o => {
     o.querySelectorAll('button').forEach(b => b.classList.toggle('on', S[o.dataset.key] === b.dataset.v));
   });
-  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).checked = S[k];
+  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide']) $('#o-' + k).checked = S[k];
   freeAnim.sync();
 }
 document.querySelectorAll('.opt[data-key]').forEach(o => {
   o.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S[o.dataset.key] = b.dataset.v; syncMenu(); saveSettings(); }));
 });
-for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
+for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
 // 自由練習（メニューで選んだ設定）で始める
 function startGame(){ leaveStage(); beginPlay(); track('free_start', { mode:S.mode, task:S.task, car:S.car }); }
 function startStage(set, n){
@@ -2396,6 +2414,7 @@ $('#resumeBtn').addEventListener('click', closeMenu);
 $('#rRetry').addEventListener('click', () => inChallenge() ? startChallenge(1) : resetPlayer());
 $('#rNew').addEventListener('click', buildLevel);
 $('#rDemo').addEventListener('click', requestDemo);
+$('#rCompare').addEventListener('click', compareWithDemo);
 $('#rMenu').addEventListener('click', openMenu);
 
 function updateHUD(ev, son){
@@ -2479,6 +2498,7 @@ function startReplay(){
   scene.add(trailMesh);
   st.gear = 'P';
   document.body.classList.add('resultView');
+  buildResultMarks();
 }
 function stepReplay(dt){
   const r = replay, N = r.frames.length, end = (N - 1) * REC_DT;
@@ -2493,7 +2513,210 @@ function stepReplay(dt){
 function endReplay(){
   replay = null;
   if (trailMesh) { scene.remove(trailMesh); trailMesh.geometry.dispose(); trailMesh.material.dispose(); trailMesh = null; }
+  if (resultMarks) { scene.remove(resultMarks); disposeGroup(resultMarks); resultMarks = null; }
   document.body.classList.remove('resultView');
+}
+
+// ---------------- 結果の目印・ハンドルを切る目安 ----------------
+// 地面に置く目印の文字（上から見る画面で読めるよう、いつもカメラの方を向く板）
+function labelSprite(text, { fg = '#fff', bg = 'rgba(14,16,20,.85)', h = 0.9, layer = 0 } = {}){
+  const c = document.createElement('canvas'), g = c.getContext('2d'), fs = 44;
+  g.font = `700 ${fs}px sans-serif`;
+  const w = Math.ceil(g.measureText(text).width) + 36;
+  c.width = w; c.height = fs + 26;
+  g.font = `700 ${fs}px sans-serif`;
+  g.fillStyle = bg; g.beginPath();
+  const r = 16; g.moveTo(r, 0); g.arcTo(w, 0, w, c.height, r); g.arcTo(w, c.height, 0, c.height, r); g.arcTo(0, c.height, 0, 0, r); g.arcTo(0, 0, w, 0, r); g.fill();
+  g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w/2, c.height/2 + 2);
+  const tex = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, depthWrite: false, transparent: true }));
+  sp.scale.set(h * w / c.height, h, 1); sp.renderOrder = 9; sp.layers.set(layer);
+  return sp;
+}
+// 車の形の枠（後軸の位置・向きで指定）。front は前の辺を太く
+function carOutline(p, color, opacity, layer = 0, len = C.len, wid = C.wid, cOff = C.cOff){
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: layer === 0 });
+  const cx = p.x + Math.sin(p.h)*cOff, cz = p.z + Math.cos(p.h)*cOff, t = 0.09;
+  const strip = (lx, lz, w, d) => {
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); q.rotation.x = -Math.PI/2;
+    const pv = new THREE.Group(); pv.position.set(cx, 0.06, cz); pv.rotation.y = p.h; q.position.set(lx, 0, lz);
+    q.layers.set(layer); pv.add(q); g.add(pv); q.renderOrder = 5;
+  };
+  strip(-wid/2, 0, t, len); strip(wid/2, 0, t, len); strip(0, -len/2, wid, t); strip(0, len/2 - t, wid, t*3);
+  return g;
+}
+function disposeGroup(g){ g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } }); }
+function markHit(){ if (st && st.hitPts) st.hitPts.push([st.x + Math.sin(st.h)*C.cOff, st.z + Math.cos(st.h)*C.cOff]); }
+
+// 教科書どおりの動き方（目安）。止める位置 → ハンドルをいっぱいに切る → まっすぐに戻す、の順に、目標の位置から逆にたどって作る。
+// 周りにぶつからないことを確かめ、作れないときは null
+const LR = d => d > 0 ? '左' : '右';
+function textbookPath(front){
+  if (!level || level.task === 'exit') return null;
+  const sp = level.spawn, wb = C.wb, mx = C.maxSteer, STEP = 0.1;
+  const mv = (p, ds, dl) => ({ x: p.x + ds*Math.sin(p.h), z: p.z + ds*Math.cos(p.h), h: p.h + ds/wb*Math.tan(dl) });
+  // ds の向きに、舵角 dl で heading が goalH になるまで進む
+  const arcTo = (p, dir, dl, goalH, out) => { for (let i = 0; i < 600 && Math.abs(wrapAng(p.h - goalH)) > 0.01; i++) { p = mv(p, dir*Math.min(STEP, Math.abs(wrapAng(p.h - goalH))*wb/Math.abs(Math.tan(dl))), dl); out.push(p); } p = { ...p, h: goalH }; return p; };
+  const line = (p, dir, len, out) => { for (let d = 0; d < len - 1e-6; d += STEP) { p = mv(p, dir*Math.min(STEP, len - d), 0); out.push(p); } return p; };
+  const clear = poses => poses.every(q => !collides(q, 0.05));
+  const approachOk = (S, dir) => { const pts = []; line(S, -dir, 4, pts); return clear(pts); };   // 止める位置まで、まっすぐ来られるか
+  if (level.type === 'bay') {
+    const F = idealPose(!!front), user = front ? 1 : -1;   // user：枠に入れるときの向き（前進 1／後退 -1）
+    const dh = wrapAng(sp.h - F.h);
+    // ハンドルはいっぱいに切るのが基本。いっぱいでは隣の車に当たるとき（前向きなど）は、少し戻した切り方で
+    // 前向きは、いったん枠と反対側へ少しふくらんでから切る（sw：ふくらむ角度）
+    for (const sw of user > 0 ? [0, 0.2, 0.35, 0.5, -0.2, -0.35, -0.5] : [0]) for (const amt of [1, 0.85, 0.7]) for (let L = 0.5; L <= 6; L += 0.25) {
+      // 目標から、利用者と逆向きにたどる
+      const back = [], p0 = { x: F.x, z: F.z, h: F.h };
+      const A = line(p0, -user, L, back);
+      const dl = Math.sign(dh) * mx * amt * (-user > 0 ? 1 : -1);
+      const rs = Math.sign(-user * Math.tan(dl));
+      const T = arcTo(A, -user, dl, sp.h + rs*sw, back);   // ハンドルを大きく切り始める位置
+      const S = sw ? arcTo(T, -user, -dl*0.5, sp.h, back) : T;   // ふくらみ始める位置
+      if (!clear(back) || !approachOk(S, 1)) continue;
+      const pts = [S, ...back.slice().reverse(), F], how = amt === 1 ? 'いっぱい' : '大きく';
+      const cues = user < 0
+        ? [{ p: S, text: `止まって、ハンドルを${LR(dl)}に${how}切ってバック` }, { p: A, text: 'ハンドルをまっすぐに戻して、まっすぐバック' }]
+        : [{ p: T, text: `ここでハンドルを${LR(dl)}に${how}切る` }, { p: A, text: 'ハンドルをまっすぐに戻して、奥まで前進' }];
+      if (sw) cues.unshift({ p: S, text: `ハンドルを${LR(-dl)}に少し切って、枠と反対側へ少しふくらむ` });
+      return { pts, turn: T, d: user, cues, end: 'あとは枠の奥までゆっくり。止まったら「完了」' };
+    }
+    return null;
+  }
+  // 縦列：前後に同じ大きさの2つの弧（S 字）。止める位置から、前の車の横の通り道へ逆にたどる
+  const F = idealPose(), R = wb/Math.tan(mx);
+  const nx = Math.cos(F.h), nz = -Math.sin(F.h);   // 車の右向き
+  const D = (sp.x - F.x)*nx + (sp.z - F.z)*nz;     // 通り道までの横の距離（右が正）
+  if (Math.abs(D) < 0.5 || Math.abs(D) > 2*R) return null;
+  const th = Math.acos(1 - Math.abs(D)/(2*R));
+  for (let L = 0; L <= 2; L += 0.25) {
+    for (const sg of [1, -1]) {
+      const back = [], p0 = { x: F.x, z: F.z, h: F.h };
+      let p = line(p0, 1, L, back);
+      p = arcTo(p, 1, sg*mx, F.h + sg*th, back); const M = p;
+      p = arcTo(p, 1, -sg*mx, F.h, back); const S = p;
+      const lat = (S.x - F.x)*nx + (S.z - F.z)*nz;
+      if (Math.sign(lat) !== Math.sign(D) || Math.abs(lat - D) > 0.4) continue;
+      if (!clear(back) || !approachOk(S, 1)) continue;
+      return { pts: [S, ...back.slice().reverse(), F], turn: S, d: -1,
+        cues: [{ p: S, text: `止まって、ハンドルを${LR(-sg*mx)}にいっぱい切ってバック` }, { p: M, text: `ハンドルを反対の${LR(sg*mx)}にいっぱい切ってバック` }],
+        end: '車がまっすぐになったら止まって「完了」' };
+    }
+  }
+  return null;
+}
+
+// B：ハンドルを切る目安。最初のステージ（と、設定でオンにした自由練習の入庫）で、次に止める・ハンドルを切る位置に車の形の枠を出す
+let guide = null, guideIdx = 0;
+const guideWanted = () => level && level.task !== 'exit' && !inChallenge() &&
+  (stageNo ? stageSet === 'normal' && [1, 2, 3, 7].includes(stageNo) : !!S.turnGuide);
+function clearGuide(){ if (guide && guide.mesh) { world.remove(guide.mesh); disposeGroup(guide.mesh); } guide = null; $('#cue').classList.remove('on'); document.body.classList.remove('cueOn'); }
+function updateGuide(){
+  if (!level) return;
+  if (!guideWanted()) { if (guide) clearGuide(); return; }
+  if (!guide || guide.level !== level) {
+    if (guide) clearGuide();
+    const tp = textbookPath(S.mode === 'front');
+    guide = { level, tp, cues: tp ? tp.cues : [], mesh: null, shown: -1 };
+    guideIdx = 0;
+  }
+  if (game !== 'play') return;
+  const cues = guide.cues;
+  // 枠に重なったら次へ（もっと先の枠に近づいたときは、そこまで進める）
+  for (let j = cues.length - 1; j >= guideIdx; j--) {
+    const c = cues[j].p;
+    if (Math.hypot(st.x - c.x, st.z - c.z) < 0.8 && Math.abs(wrapAng(st.h - c.h)) < 22*D2R) {
+      showGoalText(cues[j].text);
+      guideIdx = j + 1; break;
+    }
+  }
+  if (guide.shown !== guideIdx) {
+    guide.shown = guideIdx;
+    if (guide.mesh) { world.remove(guide.mesh); disposeGroup(guide.mesh); guide.mesh = null; }
+    const c = cues[guideIdx];
+    if (c) {
+      const g = carOutline(c.p, 0xffd23f, 0.85);
+      const lb = labelSprite(`${guideIdx + 1}`, { fg:'#16110c', bg:'#ffd23f', h:0.8 });
+      lb.position.set(c.p.x + Math.sin(c.p.h)*C.cOff, 1.2, c.p.z + Math.cos(c.p.h)*C.cOff); g.add(lb);
+      guide.mesh = g; world.add(g);
+      $('#cue').textContent = `黄色の枠に車を合わせたら：${c.text}`;
+      $('#cue').classList.add('on'); document.body.classList.add('cueOn');
+    } else {
+      $('#cue').textContent = guide.tp ? guide.tp.end : 'この配置では目安を出せません。迷ったら「お手本」で動かし方を見られます';
+      $('#cue').classList.add('on'); document.body.classList.add('cueOn');
+    }
+  }
+}
+// 画面の真ん中に、白い文字で少しのあいだ出す（開始時の表示と同じ形）
+function showGoalText(text){
+  const t = $('#toast'); t.textContent = text; t.classList.add('show', 'goal'); clearTimeout(toastTO);
+  toastTO = setTimeout(() => { t.classList.remove('show'); }, 1800);
+}
+
+// A：結果のリプレイに、切り返した場所・ぶつけた場所・理想の止め位置を出す
+let resultMarks = null;
+function buildResultMarks(){
+  if (resultMarks) { scene.remove(resultMarks); disposeGroup(resultMarks); }
+  const g = resultMarks = new THREE.Group(); scene.add(g);
+  const put = (sp, x, z, y = 1.0) => { sp.position.set(x, y, z); g.add(sp); };
+  (st.switchPts || []).forEach((p, i) => {
+    const cx = p[0] + Math.sin(p[2])*C.cOff, cz = p[1] + Math.cos(p[2])*C.cOff;
+    put(labelSprite(`切り返し${i + 1}`, { fg:'#fff', bg:'rgba(30,34,40,.9)', h:0.75, layer:6 }), cx, cz);
+  });
+  (st.hitPts || []).slice(0, 6).forEach(p => put(labelSprite('✕ 接触', { fg:'#fff', bg:'#d94a4a', h:0.8, layer:6 }), p[0], p[1], 1.4));
+  if (level.task !== 'exit') {
+    // 理想の止め位置（どちらでもOKのときは、止めた向きに近い方）
+    const cands = level.anyDir ? [idealPose(false), idealPose(true)] : [idealPose()];
+    const fh = replay ? replay.frames[replay.frames.length - 1][2] : st.h;
+    const I = cands.reduce((a, b) => Math.abs(wrapAng(fh - a.h)) <= Math.abs(wrapAng(fh - b.h)) ? a : b);
+    g.add(carOutline(I, 0x5ccf8a, 0.95, 6));
+  }
+}
+// 「目安と比べる」：教科書どおりの通り道を重ね、ハンドルを大きく切り始めた位置の違いを伝える
+function compareWithDemo(){
+  const btn = $('#rCompare'); if (btn.disabled || !replay) return;
+  btn.disabled = true;
+  const frames = replay.frames, finalH = frames[frames.length - 1][2];   // リプレイ中は st が動いているので、止めたときの向きを使う
+  const finalFront = level.type === 'bay' && (level.anyDir ? Math.abs(wrapAng(finalH - level.reqH)) > Math.PI/2 : S.mode === 'front');
+  const tp = textbookPath(finalFront);
+  if (!tp) { btn.textContent = 'この配置では比べられません'; return; }
+  btn.textContent = '目安を表示中';
+  // 目安の通り道も画面に入るように、リプレイの範囲を広げる
+  const b = replay.bounds;
+  for (const p of tp.pts) { const cx = p.x + Math.sin(p.h)*C.cOff, cz = p.z + Math.cos(p.h)*C.cOff; b.x0 = Math.min(b.x0, cx - 3.5); b.x1 = Math.max(b.x1, cx + 3.5); b.z0 = Math.min(b.z0, cz - 3.5); b.z1 = Math.max(b.z1, cz + 3.5); }
+  // 目安の通り道（白い点線）。止める位置（ハンドルを切る位置）から先
+  const pts = tp.pts.map(p => [p.x + Math.sin(p.h)*C.cOff, p.z + Math.cos(p.h)*C.cOff]);
+  const N = pts.length, pos = new Float32Array(N*2*3), idx = [];
+  for (let i = 0; i < N; i++) {
+    const p = pts[i], q = pts[Math.min(i+1, N-1)], o = pts[Math.max(i-1, 0)];
+    let dx = q[0] - o[0], dz = q[1] - o[1]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    const w = 0.06; pos.set([p[0] - dz*w, 0.07, p[1] + dx*w, p[0] + dz*w, 0.07, p[1] - dx*w], i*6);
+    if (i < N - 1 && i % 3 !== 2) { const a = i*2; idx.push(a, a+1, a+2, a+1, a+3, a+2); }   // 破線
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx);
+  const lineM = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.95, depthWrite:false, depthTest:false, side:THREE.DoubleSide }));
+  lineM.layers.set(6); lineM.renderOrder = 6; lineM.frustumCulled = false; resultMarks.add(lineM);
+  resultMarks.add(carOutline(tp.turn, 0xffffff, 0.9, 6));
+  const mk = (p, text, bg) => { const sp = labelSprite(text, { bg, fg:'#16110c', h:0.7, layer:6 }); sp.position.set(p[0] + Math.sin(p[2])*C.cOff, 1.7, p[1] + Math.cos(p[2])*C.cOff); resultMarks.add(sp); };
+  mk([tp.turn.x, tp.turn.z, tp.turn.h], '目安：ここで切る', '#fff');
+  const lines = ['<b>白い点線</b>が教科書どおりの通り道、<b>白い枠</b>がハンドルを大きく切り始める位置の目安です。'];
+  // あなたが最後に枠へ入れた動き（同じ向きのひと続き）の中で、ハンドルを大きく切り始めた位置
+  const rev = tp.d < 0 ? 1 : 0;
+  let ui = frames.length - 1;
+  while (ui > 0) { const f0 = frames[ui - 1], f1 = frames[ui]; const moved = Math.hypot(f0[0]-f1[0], f0[1]-f1[1]) > 1e-4; if (moved && f0[4] !== rev) break; ui--; }
+  const u = frames.slice(ui).find(f => Math.abs(f[3]) >= 0.6*C.maxSteer);
+  if (u) {
+    mk(u, 'あなた：ここで切った', '#f08a3c');
+    // 目安の位置との違いを、枠からの遠さ（近づいてくる向きの距離）で比べる
+    const F = tp.pts[tp.pts.length - 1], f = [Math.sin(tp.turn.h), Math.cos(tp.turn.h)];
+    const du = Math.abs((u[0] - F.x)*f[0] + (u[1] - F.z)*f[1]), dg = Math.abs((tp.turn.x - F.x)*f[0] + (tp.turn.z - F.z)*f[1]);
+    const diff = du - dg, m = Math.abs(diff).toFixed(1);
+    lines.push(Math.abs(diff) < 0.4 ? 'ハンドルを大きく切り始めた位置は、目安とほぼ同じです。'
+      : diff > 0 ? `ハンドルを大きく切り始めた位置が、目安より約 ${m}m <b>枠から遠い</b>ところでした。もう少し枠に近づいてから切りましょう。`
+      : `ハンドルを大きく切り始めた位置が、目安より約 ${m}m <b>枠に近い</b>ところでした。もう少し枠から離れたところで切りましょう。`);
+  } else lines.push('最後に枠へ入れるとき、ハンドルを大きく切らずに入れていました。');
+  lines.push('<b>緑の枠</b>が理想の止め位置です。');
+  $('#tips').innerHTML = lines.join('<br>');
 }
 
 // ---------------- お手本（自動運転） ----------------
@@ -2856,6 +3079,7 @@ function loop(t){
     }
   }
   if (game === 'demo') stepDemo(dt);
+  updateGuide();
   const mode = updateScene(dt);
   const ev = evaluate();
   if (game === 'play' && ev.exit && ev.done) showResult(ev);
