@@ -1675,6 +1675,8 @@ function rumble(ms = 180, strong = 0.8){
 }
 
 // ---------------- 音 ----------------
+// 効果音はほかのアプリの音楽と混ぜて鳴らす（音楽を止めない。Safari 16.4 以降・iOS アプリの WebView）
+try { if (navigator.audioSession) navigator.audioSession.type = 'ambient'; } catch(e) {}
 let actx = null;
 let speechPrimed = false;
 function ensureAudio(){
@@ -1695,7 +1697,8 @@ function ensureAudio(){
     }
   }
   // iOS は最初の読み上げをユーザー操作中に行う必要があるので、無音で一度だけ呼んでおく
-  if (!speechPrimed && 'speechSynthesis' in window) { speechPrimed = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e) {} }
+  // 読み上げは音楽を止めてしまうので、バック音を「音声」にしているときだけ
+  if (!speechPrimed && S.backSound === 'voice' && 'speechSynthesis' in window) { speechPrimed = true; try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch(e) {} }
 }
 // ---- バック音 ----
 let backT = 0, backSpeaking = false;

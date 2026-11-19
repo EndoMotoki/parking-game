@@ -22,6 +22,8 @@ final class AdManager: NSObject, FullScreenContentDelegate {
     func start() {
         guard !started else { return }
         started = true
+        // 広告に音声の設定を変えさせない（アプリの .ambient のまま、音楽を止めない）
+        MobileAds.shared.audioVideoManager.isAudioSessionApplicationManaged = true
         MobileAds.shared.start(completionHandler: nil)
     }
 
