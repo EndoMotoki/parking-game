@@ -93,7 +93,7 @@ body.resultView #msg, body.resultView #cockpit, body.resultView #mirrorPad, body
 #menuHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 #menuHead h1{margin:0}
 body.inApp #menuHead h1{display:none}
-body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
+body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))):not(:has(#resumeBtn:not([hidden]))){display:none}
 #badgeRow{flex:1;min-width:0;flex-wrap:nowrap !important}
 /* 右上の購入ラベルと並ぶときは、バッジはメダルの絵だけにして欠けないようにする（名前は長押し・ホバーの説明で） */
 #menuHead:has(#promoChip:not([hidden])) .badgeChip{padding:3px;gap:0}
@@ -163,7 +163,10 @@ details.more[open] summary::before{content:"− "}
 #stagePrev, #stageNext{width:40px;border:0;border-radius:8px;background:#1f2329;color:var(--muted);font-size:12px;cursor:pointer}
 #stagePrev:disabled, #stageNext:disabled{opacity:.25;cursor:default}
 #stageGrid{display:none}
-#resumeBtn{margin:0 0 8px}
+#resumeBtn{flex:none;display:inline-flex;align-items:center;gap:2px;padding:6px 12px 6px 8px;font:inherit;font-size:13px;font-weight:600;color:var(--text);
+  background:#2a2f36;border:1px solid #3a414a;border-radius:18px;cursor:pointer;white-space:nowrap}
+#resumeBtn[hidden]{display:none}
+#resumeBtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 #menuFoot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 16px;margin-top:14px}
 #menuFoot .linkbtn{margin:0}
 #menuFoot[hidden]{display:none}
@@ -310,7 +313,7 @@ body.resultView #cue{display:none}
   #startBtn{margin-top:auto}
   #menuHead{margin-bottom:10px}
   #menuHead h1{display:none}
-  #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))){display:none}
+  #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))):not(:has(#resumeBtn:not([hidden]))){display:none}
   #menuFoot{order:98;margin:14px 0 10px}
   /* 下のタブ：アイコン付きで大きく。選んでいるタブはオレンジの面で目立たせる */
   /* タブバーは画面の一番下に固定。中身はその上の部分だけを使う（スタートボタンがタブバーに隠れないように） */
@@ -518,9 +521,8 @@ body.exitTask #tDone{display:none}
 
 <div class="overlay" id="menu">
   <div class="card">
-    <div id="menuHead"><h1>駐車練習</h1><div id="badgeRow"></div><button id="promoChip" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg><span><b>広告なし＋ステージ解放</b><small id="promoPrice">買い切り</small></span></button></div>
+    <div id="menuHead"><button id="resumeBtn" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>ゲームに戻る</button><h1>駐車練習</h1><div id="badgeRow"></div><button id="promoChip" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/></svg><span><b>広告なし＋ステージ解放</b><small id="promoPrice">買い切り</small></span></button></div>
 
-    <button class="subbtn" id="resumeBtn" hidden>続きから</button>
     <div class="seg" id="menuTabs"><button data-tab="stage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4h11l-2.5 4.5L17 13H6"/></svg><span>ステージ</span></button><button data-tab="challenge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>挑戦</span></button><button data-tab="free"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M3.3 10.5H10M14 10.5h6.7M12 14v7"/></svg><span>自由練習</span></button><button data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button></div>
     <div id="stagePane">
       <div class="seg" id="stageSets"><button data-set="normal">ノーマル</button><button data-set="hard">ハード<span class="prem"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>未解放</span></button></div>
@@ -2111,7 +2113,8 @@ function openMenu(){
   syncMenu(); syncStageMenu(); syncChalMenu();
   // 続きから：メニューを開く前の画面に戻る（起動直後のメニューでは出さない）
   $('#resumeBtn').hidden = !menuFrom || menuFrom === 'menu';
-  $('#resumeBtn').textContent = IS_TOUCH ? '続きから' : '続きから（Esc）';
+  $('#resumeBtn').title = IS_TOUCH ? '' : 'Esc';
+  syncChalMenu();
 }
 function closeMenu(){
   if (!menuFrom) return;
@@ -2318,9 +2321,11 @@ $('#chalBtn').addEventListener('click', () => startChallenge(1));
 $('#chalResume').addEventListener('click', () => startChallenge(chalRun() || 1));
 function syncChalMenu(){
   const b = chalBest(), run = chalRun();
-  $('#chalResume').hidden = !run;
+  // 挑戦の途中でメニューを開いたときは、上の「ゲームに戻る」で戻れるので、下の「続きから」は出さない
+  const playing = menuFrom && menuFrom !== 'menu' && menuStage && menuStage.set === 'challenge';
+  $('#chalResume').hidden = !run || !!playing;
   $('#chalResume').textContent = `続きから（挑戦 ${run}）`;
-  $('#chalBtn').textContent = run ? '最初から挑戦' : '挑戦スタート';
+  $('#chalBtn').textContent = run || playing ? '最初から挑戦' : '挑戦スタート';
   $('#chalRec').textContent = b ? `最高記録：${b} 番までクリア` : '最高記録：まだ記録なし';
   $('#chalRec').classList.toggle('none', !b);
 }
