@@ -538,6 +538,9 @@ body.exitTask #tDone{display:none}
       <div class="opt" data-key="width"><label>枠の幅</label><div class="seg">
         <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
       </div></div>
+      <div class="opt" data-key="aisle" id="aisleOpt"><label>通路の幅</label><div class="seg">
+        <button data-v="wide">広め</button><button data-v="std">標準</button><button data-v="narrow">狭め</button>
+      </div></div>
       <div class="opt" data-key="slot" id="slotOpt"><label>空き位置</label><div class="seg">
         <button data-v="any">おまかせ</button><button data-v="end2">奥から2番目</button><button data-v="end">一番奥</button>
       </div></div>
@@ -710,7 +713,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', cam:'top',
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top',
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 // 「どちらでも」を追加したとき、それまで保存されていたバック／前向きは一度だけ「どちらでも」に切り替える
@@ -729,18 +732,18 @@ const STAGES = [
   { name:'混んだ駐車場',         task:'park', mode:'either',   crowd:'busy',   car:'std', width:'std',    slot:'any'  },
   { name:'はじめての縦列',       task:'park', mode:'parallel', crowd:'empty',  car:'std', width:'wide',   slot:'any'  },
   { name:'縦列から出る',         task:'exit', mode:'parallel', crowd:'normal', car:'std', width:'std',    slot:'any'  },
-  { name:'狭い枠',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'narrow', slot:'any'  },
-  { name:'奥から2番目',          task:'park', mode:'back',     crowd:'normal', car:'std', width:'std',    slot:'end2' },
-  { name:'一番奥',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'std',    slot:'end'  },
+  { name:'狭い枠',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'narrow', slot:'any', x:{ aisle:6.0 } },
+  { name:'奥から2番目',          task:'park', mode:'back',     crowd:'normal', car:'std', width:'std',    slot:'end2', x:{ aisle:6.0 } },
+  { name:'一番奥',               task:'park', mode:'back',     crowd:'busy',   car:'std', width:'std',    slot:'end', x:{ aisle:6.0 } },
   { name:'混んだ路肩で縦列',     task:'park', mode:'parallel', crowd:'busy',   car:'std', width:'std',    slot:'any'  },
-  { name:'軽で満車の駐車場',     task:'park', mode:'front',    crowd:'full',   car:'kei', width:'narrow', slot:'any'  },
-  { name:'ミニバンで駐車',       task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std',    slot:'any'  },
-  { name:'ミニバンで出庫',       task:'exit', mode:'either',   crowd:'busy',   car:'van', width:'std',    slot:'any'  },
+  { name:'軽で満車の駐車場',     task:'park', mode:'front',    crowd:'full',   car:'kei', width:'narrow', slot:'any', x:{ aisle:6.0 } },
+  { name:'ミニバンで駐車',       task:'park', mode:'back',     crowd:'busy',   car:'van', width:'std',    slot:'any', x:{ aisle:6.0 } },
+  { name:'ミニバンで出庫',       task:'exit', mode:'either',   crowd:'busy',   car:'van', width:'std',    slot:'any', x:{ aisle:6.0 } },
   { name:'ミニバンで縦列',       task:'park', mode:'parallel', crowd:'normal', car:'van', width:'std',    slot:'any'  },
-  { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end'  },
-  { name:'ミニバンで一番奥',     task:'park', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'end'  },
+  { name:'満車の一番奥',         task:'park', mode:'back',     crowd:'full',   car:'std', width:'narrow', slot:'end', x:{ aisle:5.8 } },
+  { name:'ミニバンで一番奥',     task:'park', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'end', x:{ aisle:5.8 } },
   { name:'軽で狭い縦列',         task:'park', mode:'parallel', crowd:'busy',   car:'kei', width:'narrow', slot:'any'  },
-  { name:'最終：満車から出庫',   task:'exit', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'any'  },
+  { name:'最終：満車から出庫',   task:'exit', mode:'back',     crowd:'full',   car:'van', width:'narrow', slot:'any', x:{ aisle:5.8 } },
 ];
 // ハードステージ（有料オプション）：動く車・歩行者（traffic / peds）、速い車（fast：速さの倍率）、柱（pillars）、狭い通路（aisle）、夜（night）
 const HARD_STAGES = [
@@ -767,6 +770,8 @@ const HARD_STAGES = [
 ];
 const SETS = { normal: STAGES, hard: HARD_STAGES };
 const STAGE_KEYS = ['slot','task','mode','crowd','car','width'];
+// 駐車場の通路の幅（m）。自由練習で選ぶ。ステージは x.aisle（なければ 6.5m）
+const AISLE_W = { wide:7.0, std:6.0, narrow:5.2 };
 const STAGE_CLEAR = 60;      // 60点以上（接触なし）でクリア
 let stageSet = 'normal', stageNo = 0, stageFree = null, stageCleared = false, menuStage = null;
 let hardOwned = false, hardPrice = '';      // 購入済みか（広告削除＋ハード解放をまとめた1つの購入。iOS アプリから届く）
@@ -1157,7 +1162,7 @@ const lineY = 0.012;
 function buildBay(){
   const cr = CROWD[S.crowd];
   const X = stageX();
-  const sw = { wide:2.8, std:2.5, narrow:2.3 }[S.width], sl = 5.0, aisle = X.aisle || 6.5, n = 14;
+  const sw = { wide:2.8, std:2.5, narrow:2.3 }[S.width], sl = 5.0, aisle = X.aisle || (stageNo ? 6.5 : AISLE_W[S.aisle] || 6.0), n = 14;
   const x0 = -n*sw/2, backD = aisle/2 + sl;
   const endX = n*sw/2 + 9, wallZ = backD + 0.75;
   // 「一番奥」「奥から2番目」：+x 側を行き止まり（最後の枠のすぐ先に壁）にする
@@ -2067,7 +2072,7 @@ function flashHit(text){
 }
 // メニューを開いた元の画面。Esc でそこへ戻る（最初のメニューは null）
 let menuFrom = null, menuSnap = '';
-const layoutKey = () => ['slot','task','mode','crowd','car','width'].map(k => S[k]).join();
+const layoutKey = () => ['slot','task','mode','crowd','car','width','aisle'].map(k => S[k]).join();
 function openMenu(){
   releaseTouchInputs();
   menuStage = stageNo ? { set: stageSet, n: stageNo } : null; leaveStage();
@@ -2227,6 +2232,7 @@ function syncMenu(){
   mb[0].textContent = ex ? 'バックで出る' : 'バック';
   mb[1].textContent = ex ? '前進で出る' : '前向き';
   $('#slotOpt').classList.toggle('disabled', par);
+  $('#aisleOpt').classList.toggle('disabled', par);
   const slotNote = par || S.slot === 'any' ? '' :
     S.task === 'exit' ? `行き止まりの${S.slot === 'end' ? '一番奥' : '奥から2番目'}から出します。` :
     `行き止まりで、${S.slot === 'end' ? '一番奥' : '奥から2番目'}しか空いていません。`;
