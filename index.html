@@ -554,7 +554,7 @@ body.exitTask #tDone{display:none}
     <div id="setPane" hidden>
     <details class="more"><summary>詳細設定</summary>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
-        <button data-v="top">俯瞰</button><button data-v="chase">追従</button><button data-v="driver">運転席</button>
+        <button data-v="top">見下ろし</button><button data-v="chase">追従</button><button data-v="driver">運転席</button>
       </div></div>
       <div class="opt" data-key="backSound"><label>バック音</label><div class="seg">
         <button data-v="beep">ピー</button><button data-v="voice">音声</button><button data-v="off">なし</button>
@@ -710,7 +710,7 @@ const CROWD = {
 };
 const MODE_LABEL = { back:'バック駐車', front:'前向き駐車', parallel:'縦列駐車' };
 const CAM_MODES = ['top','topRot','chase','driver'];
-const CAM_LABEL = { top:'俯瞰（固定）', topRot:'俯瞰（車基準）', chase:'追従', driver:'運転席' };
+const CAM_LABEL = { top:'見下ろし（固定）', topRot:'見下ろし（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
 const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top',
