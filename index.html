@@ -2327,8 +2327,9 @@ $('#chalBtn').addEventListener('click', () => startChallenge(1));
 $('#chalResume').addEventListener('click', () => startChallenge(chalRun() || 1));
 function syncChalMenu(){
   const b = chalBest(), run = chalRun();
-  // 挑戦の途中でメニューを開いたときは、上の「ゲームに戻る」で戻れるので、下の「続きから」は出さない
-  const playing = menuFrom && menuFrom !== 'menu' && menuStage && menuStage.set === 'challenge';
+  // 挑戦を運転している途中でメニューを開いたときは、上の「ゲームに戻る」で戻れるので、下の「続きから」は出さない
+  // （クリア後の結果画面から開いたときは、次の番号から続けられるように出す）
+  const playing = menuFrom === 'play' && menuStage && menuStage.set === 'challenge';
   $('#chalResume').hidden = !run || !!playing;
   $('#chalResume').textContent = `続きから（挑戦 ${run}）`;
   $('#chalBtn').textContent = run || playing ? '最初から挑戦' : '挑戦スタート';
