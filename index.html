@@ -1478,7 +1478,7 @@ let st = null;   // 車両状態（x,z は後軸中心）
 function resetPlayer(){
   const sp = level.spawn;
   st = { x: sp.x, z: sp.z, h: sp.h, v: 0, delta: 0, gear:'P', gearChanges:0, dirChanges:0, segDir:0, pendDist:0, shiftT:0, hits:0, curbs:0, touching:false,
-         time:0, started:false, mirrorPitch:-0.1, lookYaw:0, rec:[], hitPts:[], switchPts:[] };
+         time:0, started:false, mirrorPitch:-0.1, lookYaw:0, lookDrag:0, lookPitch:0, lookP:0, rec:[], hitPts:[], switchPts:[] };
   guideIdx = 0;
   recT = 0;
   clearMoversNear(playerRect(st, 3));
@@ -1768,12 +1768,13 @@ const pinchPts = new Map();
   addEventListener('pointerup', up, true); addEventListener('pointercancel', up, true);
 })();
 // 追従視点：画面を1本指（マウスは左ボタン）でドラッグすると車の周りを回って見られる。ダブルタップで後ろからに戻す
+// 運転席視点：同じドラッグで首を左右（少し上下）に振って目視できる。離してもその向きのまま、ダブルタップで正面に戻す
 const ORBIT_EL = Math.atan(0.62);
 const orbit = { yaw:0, el:ORBIT_EL, drag:null, lastTap:0, hinted:false };
 (function(){
   const cv = $('#main');
   const usingControls = () => touchSteer.active || Object.keys(keys).some(k => k[0] === 'T' && keys[k]);
-  const can = () => CAM_MODES[camIdx] === 'chase' && (game === 'play' || game === 'demo');
+  const can = () => ['chase','driver'].includes(CAM_MODES[camIdx]) && (game === 'play' || game === 'demo');
   cv.addEventListener('pointerdown', e => {
     if (!can() || (e.pointerType === 'mouse' && e.button !== 0)) return;
     if (!e.isPrimary || usingControls()) { orbit.drag = null; return; }   // 2本目の指（ピンチ）やハンドル操作中は回さない
@@ -1783,6 +1784,12 @@ const orbit = { yaw:0, el:ORBIT_EL, drag:null, lastTap:0, hinted:false };
     const g = orbit.drag; if (!g || g.id !== e.pointerId) return;
     if (pinchPts.size >= 2) { orbit.drag = null; return; }
     const k = 3.2 / Math.max(320, Math.min(innerWidth, innerHeight) * 1.6);   // 画面の幅ほど動かすと 1 周弱
+    if (CAM_MODES[camIdx] === 'driver') {
+      // 景色をつかんで動かす向き（指を右へ → 左を向く）。真後ろ近くまで振り向ける
+      st.lookDrag = clamp(st.lookDrag + (e.clientX - g.x) * k * 1.3, -2.6, 2.6);
+      st.lookPitch = clamp(st.lookPitch + (e.clientY - g.y) * k * 0.8, -0.55, 0.3);
+      g.x = e.clientX; g.y = e.clientY; return;
+    }
     orbit.yaw -= (e.clientX - g.x) * k * 1.6;
     orbit.el = clamp(orbit.el + (e.clientY - g.y) * k, 0.32, 1.45);
     orbit.yaw = Math.atan2(Math.sin(orbit.yaw), Math.cos(orbit.yaw));
@@ -1793,13 +1800,19 @@ const orbit = { yaw:0, el:ORBIT_EL, drag:null, lastTap:0, hinted:false };
     orbit.drag = null;
     if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 10) return;
     const now = performance.now();
-    if (now - orbit.lastTap < 320) { orbit.yaw = 0; orbit.el = ORBIT_EL; orbit.lastTap = 0; } else orbit.lastTap = now;
+    if (now - orbit.lastTap < 320) { orbit.yaw = 0; orbit.el = ORBIT_EL; st.lookDrag = st.lookPitch = 0; orbit.lastTap = 0; } else orbit.lastTap = now;
   };
   addEventListener('pointerup', up, true); addEventListener('pointercancel', e => { if (orbit.drag && orbit.drag.id === e.pointerId) orbit.drag = null; }, true);
 })();
 // 追従視点に切り替えたときに、一度だけ見回し方を知らせる
 function orbitHint(){
-  if (orbit.hinted || CAM_MODES[camIdx] !== 'chase') return;
+  const m = CAM_MODES[camIdx];
+  if (m === 'driver') {
+    if (orbit.hintedD) return; orbit.hintedD = true;
+    showToastInfo(IS_TOUCH ? '画面をドラッグで左右を確認・ダブルタップで正面に戻す' : 'ドラッグで左右を確認・ダブルクリックで正面に戻す');
+    return;
+  }
+  if (orbit.hinted || m !== 'chase') return;
   orbit.hinted = true;
   showToastInfo(IS_TOUCH ? '画面をドラッグで見回し・ダブルタップで戻す' : 'ドラッグで見回し・ダブルクリックで戻す');
 }
@@ -2290,7 +2303,7 @@ function closeMenu(){
   // コースに関わる設定を変えたときは、新しい設定で始め直す
   if (layoutKey() !== lay) { menuStage = null; startGame(); return; }
   if (menuStage) { enterStage(menuStage.set, menuStage.n); menuStage = null; }
-  if (S.cam !== cam) camIdx = Math.max(0, CAM_MODES.indexOf(S.cam));
+  if (S.cam !== cam) { camIdx = Math.max(0, CAM_MODES.indexOf(S.cam)); orbitHint(); }
   $('#menu').classList.add('off');
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
   if (menuFrom === 'demo') resetPlayer();          // お手本の途中だったら、自分で練習する状態に
@@ -3248,11 +3261,12 @@ function updateScene(dt){
   camRear.rotation.set(-0.05, 0, 0);
   camBack.rotation.set(-0.62, 0, 0);
   // 運転席の目視
-  let look = 0;
+  let look = st.lookDrag;   // 画面ドラッグで向けた向き（キーやスティックの間はそちらを優先）
   if (isDown('KeyQ')) look = 1.25; if (isDown('KeyE')) look = -1.1; if (isDown('KeyV', 'GLookBack')) look = 2.75;
   if (Math.abs(pad.lookX) > 0) look = -pad.lookX * 1.4;   // 右スティックで見回す
   st.lookYaw += (look - st.lookYaw) * Math.min(1, dt*7);
-  driverCam.rotation.set(-0.07, Math.PI + st.lookYaw, 0);
+  st.lookP += (st.lookPitch - st.lookP) * Math.min(1, dt*7);
+  driverCam.rotation.set(-0.07 + st.lookP, Math.PI + st.lookYaw, 0);
   // 予測軌跡
   const rp = predictPath(-1, -C.rearOH), fp = predictPath(1, C.wb + C.frontOH);
   rearPaths.forEach((m, i) => setRibbon(m, rp[i]));
