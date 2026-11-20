@@ -32,6 +32,17 @@
             android:resource="@xml/gma_ad_services_config"
             tools:replace="android:resource" />
 
+        <!-- 結果の画像を共有するとき、ほかのアプリに画像を渡す -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
+
         <!-- 画面を回してもゲームを読み込み直さない（configChanges） -->
         <activity
             android:name=".MainActivity"

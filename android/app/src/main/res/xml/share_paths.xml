@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 共有する結果の画像（キャッシュの share フォルダ）だけを、ほかのアプリに渡せるようにする -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>
