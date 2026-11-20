@@ -1090,6 +1090,37 @@ function addStreetLamp(px, pz, lx, lz, r){
 }
 
 // ---------------- 車モデル ----------------
+// 運転席視点だけで見える車内の枠（ピラー・屋根・ドアの内張り・ダッシュボード）。
+// 実際の運転と同じく、柱や屋根で隠れるところは見えないようにする
+function buildInterior(spec, y0, yt, cw, zr, zf){
+  const g = new THREE.Group(); g.visible = false;
+  const DARK = 0x23272c, TRIM = 0x34393f, LINER = 0x8d9096;
+  // 2点を結ぶ角材（w：横の太さ、d：奥行きの太さ）
+  const beam = (a, b, w, d, color) => {
+    const v = new THREE.Vector3(b[0]-a[0], b[1]-a[1], b[2]-a[2]);
+    const m = box(w, d, v.length(), color);
+    m.position.set((a[0]+b[0])/2, (a[1]+b[1])/2, (a[2]+b[2])/2);
+    m.lookAt(m.position.clone().add(v));   // まだ親がないので、ここでの座標は車の中の座標
+    g.add(m); return m;
+  };
+  const top = yt - 0.04, zTopF = zf - 0.2, zTopR = zr + 0.3, eyeZ = zf - 0.62;
+  for (const sx of [-1, 1]) {
+    const x = sx * (cw/2 - 0.05);
+    beam([x, y0 + 0.02, zf + 0.22], [x, top, zTopF], 0.08, 0.08, DARK);           // Aピラー（フロントガラスの両脇）
+    beam([x, top, zTopR], [x, top, zTopF], 0.09, 0.08, DARK);                   // 屋根の横のふち
+    const bz = Math.max(zr + 0.6, eyeZ - 0.48);                                  // Bピラー（運転席のすぐ後ろ）
+    beam([x, y0 - 0.02, bz], [x, top, bz - 0.04], 0.07, 0.14, DARK);
+    beam([x, y0 - 0.02, zr + 0.04], [x, top, zTopR + 0.05], 0.07, 0.42, DARK); // Cピラー（後ろの太い柱）
+    const door = box(0.05, 0.34, zf - zr + 0.2, TRIM);                          // ドアの内張り（窓の下）
+    door.position.set(sx * (cw/2 - 0.02), y0 - 0.12, (zf + zr)/2 + 0.1); g.add(door);
+  }
+  beam([-cw/2, top, zTopF], [cw/2, top, zTopF], 0.08, 0.1, DARK);               // フロントガラスの上のふち
+  beam([-cw/2, top, zTopR], [cw/2, top, zTopR], 0.08, 0.14, DARK);              // リアガラスの上のふち
+  const liner = box(cw, 0.02, zTopF - zTopR, LINER); liner.position.set(0, yt - 0.015, (zTopF + zTopR)/2); g.add(liner);   // 天井
+  const floor = box(cw - 0.04, 0.02, zf - zr, TRIM); floor.position.set(0, y0 + 0.015, (zf + zr)/2); g.add(floor);   // 座席まわり（車体の上面が車内に見えないように）
+  const dash = box(cw, 0.12, 0.42, DARK); dash.position.set(0, y0 + 0.04, zf - 0.04); g.add(dash);   // ダッシュボード
+  return g;
+}
 function buildCarMesh(spec, color, isPlayer){
   const g = new THREE.Group();
   const clr = 0.22, bh = spec.bodyH;
@@ -1135,7 +1166,9 @@ function buildCarMesh(spec, color, isPlayer){
   // 影
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(spec.wid + 0.25, spec.len + 0.25), shadowMat);
   sh.rotation.x = -Math.PI/2; sh.position.y = 0.02; g.add(sh);
-  g.userData = { fw, heads, tails, revs, beam, revBeam, brakeGlow, cabin, roof, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
+  const interior = isPlayer ? buildInterior(spec, clr + bh, clr + bh + ch, cw, spec.cabinZ - cl/2, spec.cabinZ + cl/2) : null;
+  if (interior) g.add(interior);
+  g.userData = { fw, heads, tails, revs, beam, revBeam, brakeGlow, cabin, roof, interior, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
   return g;
 }
 
@@ -3324,9 +3357,9 @@ function render(mode, ev){
   cam.layers.set(0);
   if (S.guide && st.gear === 'R') { cam.layers.enable(1); cam.layers.enable(4); }
   if (S.guide && st.gear === 'D') { cam.layers.enable(2); cam.layers.enable(5); }
-  if (mode === 'driver') { u.cabin.visible = false; u.roof.visible = false; }
+  if (mode === 'driver') { u.cabin.visible = false; u.roof.visible = false; if (u.interior) u.interior.visible = true; }
   mainR.render(scene, cam);
-  u.cabin.visible = true; u.roof.visible = true;
+  u.cabin.visible = true; u.roof.visible = true; if (u.interior) u.interior.visible = false;
   if (S.showMirrors) {
     rL.render(scene, camL); rR.render(scene, camR);
     targetMesh.visible = false;
