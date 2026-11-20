@@ -2758,7 +2758,7 @@ function textbookPath(front){
 // B：ハンドルを切る目安。最初のステージ（と、設定でオンにした自由練習の入庫）で、次に止める・ハンドルを切る位置に車の形の枠を出す
 let guide = null, guideIdx = 0;
 const guideWanted = () => level && level.task !== 'exit' && !inChallenge() &&
-  (stageNo ? stageSet === 'normal' && [1, 2, 3, 7].includes(stageNo) : !!S.turnGuide);
+  (stageNo ? stageSet === 'normal' && stageNo === 1 : !!S.turnGuide);
 function clearGuide(){ if (guide && guide.mesh) { world.remove(guide.mesh); disposeGroup(guide.mesh); } guide = null; $('#cue').classList.remove('on'); document.body.classList.remove('cueOn'); }
 function updateGuide(){
   if (!level) return;
