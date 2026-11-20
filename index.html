@@ -369,6 +369,8 @@ body.ctrlShift #tAccel.down{background:rgba(92,207,138,.75);color:#111}
 #tKnob{position:absolute;left:50%;width:70%;height:24%;margin-left:-35%;border-radius:9px;z-index:0;pointer-events:none;
   background:linear-gradient(#5a616a,#3a4048);box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25);transition:top .08s ease-out}
 #tShift.drag #tKnob{transition:none}
+#tShift.nudge #tGate{animation:leverNudge .9s ease-out}
+@keyframes leverNudge{0%,40%,80%{box-shadow:0 0 0 3px #ffd23f}20%,60%,100%{box-shadow:0 0 0 0 rgba(255,210,63,0)}}
 body.ctrlShift.portrait #tPedals .tbtn{font-size:11px}
 body.ctrlShift.portrait #tShift{width:14vw} body.ctrlShift.portrait #tBrake{width:19vw} body.ctrlShift.portrait #tAccel{width:13vw}
 #tSlow{position:fixed;right:calc(10px + env(safe-area-inset-right));z-index:8;
@@ -1999,7 +2001,13 @@ function physics(dt){
       else if (accel) st.v = sv < top ? dir*Math.min(top, sv + acc*dt) : dir*Math.max(top, sv - drag*dt);
       else st.v = toward0(st.v, drag*dt);   // アクセルを離すと止まっていく
     }
-    if (accel && st.gear === 'P' && Math.abs(st.v) < 0.05 && !st.accelHint) { st.accelHint = true; showToastInfo('シフトレバーを D（前進）か R（後退）に入れましょう'); }
+    // P のままアクセルかブレーキを踏んだら、そのたびに知らせてレバーを光らせる
+    const pedal = accel || !!brake;
+    if (pedal && !st.prevPedal && st.gear === 'P' && game === 'play') {
+      showGoalText('シフトレバーを D（前進）か R（後退）に入れましょう');
+      const g = $('#tShift'); g.classList.remove('nudge'); void g.offsetWidth; g.classList.add('nudge');
+    }
+    st.prevPedal = pedal;
     if (Math.abs(st.v) > 0.02 && !st.started) st.started = true;
   } else {
     // 前進・後退ボタン：反対向きのボタンで減速しているときもブレーキランプを点ける
