@@ -12,6 +12,9 @@ struct GameWebView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.add(WeakHandler(context.coordinator), name: "app")
+        // 同梱のゲームと決まった CDN しか読まないので、Safari のセーフブラウジング（詐欺サイトの確認）は使わない。
+        // iPadOS 17 の古い iPad で、この確認の処理（SafariSafeBrowsing）の中でアプリが落ちることがあるため
+        config.preferences.isFraudulentWebsiteWarningEnabled = false
 
         let web = WKWebView(frame: .zero, configuration: config)
         web.isOpaque = false
