@@ -366,7 +366,7 @@ body.ctrlShift #tAccel{display:flex;grid-column:3;width:min(14vh,54px,14vw);back
 #tGate span{position:relative;z-index:1;width:100%;text-align:center;line-height:1;pointer-events:none}
 #tGate span.on{color:#fff}
 #tGate span.on[data-g="R"]{color:var(--accent)}
-#tKnob{position:absolute;left:50%;width:70%;height:20%;margin-left:-35%;border-radius:9px;z-index:0;pointer-events:none;
+#tKnob{position:absolute;left:50%;width:70%;height:24%;margin-left:-35%;border-radius:9px;z-index:0;pointer-events:none;
   background:linear-gradient(#5a616a,#3a4048);box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25);transition:top .08s ease-out}
 #tShift.drag #tKnob{transition:none}
 body.ctrlShift.portrait #tPedals .tbtn{font-size:11px}
@@ -478,7 +478,7 @@ body.exitTask #tDone:not(.retry){display:none}
 </div>
 
 <div class="hud" id="gearbox">
-  <div class="gears"><div data-g="P">P</div><div data-g="R">R</div><div data-g="N">N</div><div data-g="D">D</div></div>
+  <div class="gears"><div data-g="P">P</div><div data-g="R">R</div><div data-g="D">D</div></div>
   <div id="speed">0<small>km/h</small></div>
 </div>
 
@@ -552,7 +552,7 @@ body.exitTask #tDone:not(.retry){display:none}
     </svg>
   </div>
   <div id="tPedals">
-    <div id="tShift" aria-label="シフトレバー"><div id="tGate"><span data-g="P">P</span><span data-g="R">R</span><span data-g="N">N</span><span data-g="D">D</span><i id="tKnob"></i></div></div>
+    <div id="tShift" aria-label="シフトレバー"><div id="tGate"><span data-g="P">P</span><span data-g="R">R</span><span data-g="D">D</span><i id="tKnob"></i></div></div>
     <button class="tbtn" id="tBrake" data-hold="Space">ブレーキ</button>
     <button class="tbtn" id="tAccel" data-hold="Accel">アクセル</button>
     <button class="tbtn" id="tFwd" data-hold="KeyW">前進</button>
@@ -638,7 +638,7 @@ body.exitTask #tDone:not(.retry){display:none}
     </details>
 
     <details class="more"><summary>操作方法</summary>
-      <div class="keys touch-only"><span class="ctrlShiftOnly">ハンドルを指で回します。シフトレバーを D（前進）か R（後退）に入れると、ゆっくり進みます。速く進むときは「アクセル」、止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">ハンドルを指で回し、「前進」「後退」を押している間だけ進みます。</span></div>
+      <div class="keys touch-only"><span class="ctrlShiftOnly">ハンドルを指で回します。シフトレバーを D（前進）か R（後退）に入れ、「アクセル」を押している間だけ進みます。止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">ハンドルを指で回し、「前進」「後退」を押している間だけ進みます。</span></div>
       <div class="keys keys-only">
         <kbd>W</kbd><kbd>S</kbd> 前進・後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ<br>
         <kbd>Enter</kbd> 完了　<kbd>R</kbd> やり直し　<kbd>Esc</kbd> メニュー
@@ -670,7 +670,7 @@ body.exitTask #tDone:not(.retry){display:none}
       <section class="tut-slide">
         <svg viewBox="0 0 150 110"><circle cx="46" cy="58" r="34" fill="none" stroke="#d9dde2" stroke-width="7"/><circle cx="46" cy="58" r="8" fill="#d9dde2"/><line x1="12" y1="58" x2="80" y2="58" stroke="#d9dde2" stroke-width="5"/><line x1="46" y1="58" x2="46" y2="92" stroke="#d9dde2" stroke-width="5"/><rect x="40" y="20" width="12" height="9" rx="2" fill="#f08a3c"/><rect x="96" y="30" width="22" height="58" rx="5" fill="#2e3238"/><rect x="122" y="30" width="22" height="27" rx="5" fill="#2e3238"/><rect x="122" y="61" width="22" height="27" rx="5" fill="#2e3238"/><text x="133" y="48" font-size="9" fill="#d9dde2" text-anchor="middle">前</text><text x="133" y="79" font-size="9" fill="#d9dde2" text-anchor="middle">後</text></svg>
         <h2>操作のしかた</h2>
-        <p class="touch-only"><span class="ctrlShiftOnly">左下のハンドルを指で回します。右下のシフトレバーを D（前進）か R（後退）に入れると、ゆっくり進みます。速く進むときは「アクセル」、止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">左下のハンドルを指で回し、右下の「前進」「後退」を押している間だけ進みます。止まるときは「ブレーキ」。</span>スマホは<b>横向き</b>にすると、ミラーやハンドルが大きくなって遊びやすくなります。</p>
+        <p class="touch-only"><span class="ctrlShiftOnly">左下のハンドルを指で回します。右下のシフトレバーを D（前進）か R（後退）に入れ、「アクセル」を押している間だけ進みます。止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">左下のハンドルを指で回し、右下の「前進」「後退」を押している間だけ進みます。止まるときは「ブレーキ」。</span>スマホは<b>横向き</b>にすると、ミラーやハンドルが大きくなって遊びやすくなります。</p>
         <p class="keys-only"><kbd>W</kbd> 前進　<kbd>S</kbd> 後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ。<kbd>Shift</kbd> を押しながらだとゆっくり進みます。</p>
         <p>枠に入って止まったら「完了」で採点します。ミラーをタップすると角度を調整できます。</p>
       </section>
@@ -1652,10 +1652,10 @@ document.querySelectorAll('[data-hold]').forEach(b => {
   b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
 });
 // シフトレバー：つまんで上下に動かす（または P・R・N・D の位置をタップ）。離したところのギアに入る
-const GEARS = ['P', 'R', 'N', 'D'];
+const GEARS = ['P', 'R', 'D'];
 const shiftMode = () => IS_TOUCH && S.ctrl !== 'simple';
 function applyCtrl(){ document.body.classList.toggle('ctrlShift', shiftMode()); }
-function knobTo(i){ $('#tKnob').style.top = `${(i + 0.5) / GEARS.length * 100 - 10}%`; }
+function knobTo(i){ $('#tKnob').style.top = `${(i + 0.5) / GEARS.length * 100 - 12}%`; }
 const shiftLever = { drag:false, id:null, idx:0 };
 (function(){
   const el = $('#tShift'), gate = $('#tGate');
@@ -1988,18 +1988,18 @@ function physics(dt){
   if (back && !st.prevBack) st.backFromStop = Math.abs(st.v) < 0.03;
   st.prevFwd = fwd; st.prevBack = back;
   if (shiftMode()) {
-    // シフトレバー：D・R に入れるとブレーキを離しただけでゆっくり進む（クリープ）。アクセルで速く
+    // シフトレバー：D・R に入れてアクセルを踏んでいる間だけ進む（クリープはなし）
     const accel = isDown('TAccel'), dir = st.gear === 'D' ? 1 : st.gear === 'R' ? -1 : 0;
     st.braking = !!brake || (dir !== 0 && st.v*dir < -0.03) || (st.gear === 'P' && Math.abs(st.v) > 0.03);   // 逆のギア・P で止まっていく間も点ける
     if (brake) st.v = toward0(st.v, brk*dt);
     else if (st.gear === 'P') st.v = toward0(st.v, brk*2*dt);
-    else if (dir) {
-      const top = accel ? (dir > 0 ? 3.3 : 2.0) : (dir > 0 ? 0.9 : 0.7), sv = st.v*dir;
-      if (sv < 0) st.v = toward0(st.v, brk*dt);
-      else if (sv < top) st.v = dir*Math.min(top, sv + (accel ? acc : 0.9)*dt);
-      else st.v = dir*Math.max(top, sv - drag*dt);
-    } else st.v = toward0(st.v, drag*0.4*dt);   // N：転がるだけ
-    if (accel && !dir && Math.abs(st.v) < 0.05 && !st.accelHint) { st.accelHint = true; showToastInfo('シフトレバーを D（前進）か R（後退）に入れましょう'); }
+    else {
+      const sv = st.v*dir, top = dir > 0 ? 3.3 : 2.0;
+      if (sv < -0.001) st.v = toward0(st.v, brk*dt);
+      else if (accel) st.v = sv < top ? dir*Math.min(top, sv + acc*dt) : dir*Math.max(top, sv - drag*dt);
+      else st.v = toward0(st.v, drag*dt);   // アクセルを離すと止まっていく
+    }
+    if (accel && st.gear === 'P' && Math.abs(st.v) < 0.05 && !st.accelHint) { st.accelHint = true; showToastInfo('シフトレバーを D（前進）か R（後退）に入れましょう'); }
     if (Math.abs(st.v) > 0.02 && !st.started) st.started = true;
   } else {
     // 前進・後退ボタン：反対向きのボタンで減速しているときもブレーキランプを点ける
