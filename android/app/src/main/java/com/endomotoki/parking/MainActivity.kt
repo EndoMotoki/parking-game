@@ -150,6 +150,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // 結果の画像と文章を、端末の共有画面（X・LINE・Instagram など）で送る。画像はアプリのキャッシュに書き、FileProvider で渡す
+    private fun shareResult(dataUrl: String, text: String) {
+        val comma = dataUrl.indexOf(',')
+        if (comma < 0) return
+        val bytes = try { android.util.Base64.decode(dataUrl.substring(comma + 1), android.util.Base64.DEFAULT) } catch (e: Exception) { return }
+        val dir = java.io.File(cacheDir, "share").apply { mkdirs() }
+        val file = java.io.File(dir, "parking-result.jpg")
+        file.writeBytes(bytes)
+        val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.share", file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, text)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(send, "結果を共有"))
+        Telemetry.log("share_open", null)
+    }
+
     private fun handle(msg: JSONObject) {
         when (msg.optString("type")) {
             "ready" -> {
@@ -184,6 +203,7 @@ class MainActivity : AppCompatActivity() {
             "haptic" -> vibrate(msg.optDouble("strong", 1.0) >= 0.8)
             "buy" -> store.buy(this)
             "restore" -> store.restore()
+            "share" -> shareResult(msg.optString("image"), msg.optString("text"))
             "cloudSave" -> {
                 // ゲームの進み具合を保存（Google のバックアップで、入れ直しや機種変更のあとに戻る）
                 val data = msg.optJSONObject("data") ?: return

@@ -217,12 +217,22 @@ details.more[open] summary::before{content:"− "}
 .btnrow{display:flex;gap:6px;margin-top:16px}
 .btnrow button{flex:1;padding:9px;font-size:13px;border-radius:8px;border:0;background:#2a2f36;color:var(--text);cursor:pointer}
 .btnrow button.primary{background:var(--accent);color:#111;font-weight:600}
+.btnrow a.btnlike{flex:1;padding:9px;font-size:13px;border-radius:8px;background:var(--accent);color:#111;font-weight:600;text-decoration:none;text-align:center}
 .keys{font-size:12px;color:var(--muted);line-height:1.9;margin-top:8px}
 .keys kbd{display:inline-block;min-width:18px;text-align:center;background:#262a30;border-radius:4px;padding:0 5px;
   font-family:inherit;font-size:11px;color:#d6dbe0}
 .keys .g{margin-top:6px}
 #resTitle{font-size:12px;color:var(--muted)}
 .rankrow{display:flex;align-items:baseline;gap:14px;margin:4px 0 12px}
+#rShare{margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:5px;padding:7px 14px;font:inherit;font-size:13px;font-weight:700;color:#16110c;
+  background:var(--accent);border:0;border-radius:18px;cursor:pointer}
+#rShare svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#rShare:disabled{opacity:.6}
+#sharePv{z-index:40;background:rgba(8,9,11,.8)}
+#sharePv .card{width:min(380px,100%);text-align:center}
+#sharePv img{display:block;width:100%;max-height:58vh;object-fit:contain;border-radius:10px;margin:0 auto 10px}
+#sharePv p{margin:0 0 6px;font-size:12px;color:var(--muted)}
+#sharePv .btnrow{flex-wrap:wrap}
 #rank{font-size:56px;font-weight:700;line-height:1}
 #score{font-size:18px;color:var(--text)}
 #resBest{font-size:12px;color:var(--muted);margin:-2px 0 6px}
@@ -717,7 +727,7 @@ body.exitTask #tDone:not(.retry){display:none}
     <div id="resBody">
       <div id="resBadge" hidden></div>
       <div id="resTitle">駐車完了</div>
-      <div class="rankrow"><span id="rank">S</span><span id="score">100 点</span></div>
+      <div class="rankrow"><span id="rank">S</span><span id="score">100 点</span><button id="rShare"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>共有</button></div>
       <div id="resBest" hidden></div>
       <table id="breakdown"></table>
       <div id="tips"></div>
@@ -729,6 +739,18 @@ body.exitTask #tDone:not(.retry){display:none}
       <button id="rDemo">お手本</button>
       <button id="rNew">別の配置</button>
       <button id="rMenu">メニュー</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay off" id="sharePv">
+  <div class="card">
+    <img id="sharePvImg" alt="共有する画像">
+    <p>画像を保存して、SNS に投稿できます（スマホは画像を長押しでも保存できます）</p>
+    <div class="btnrow">
+      <a class="primary btnlike" id="shareSave" download="parking-result.png">画像を保存</a>
+      <button id="shareX">X でポスト</button>
+      <button id="shareClose">閉じる</button>
     </div>
   </div>
 </div>
@@ -2213,6 +2235,8 @@ function finishResult(score, rows, tips, title){
   $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
   const rank = score >= 90 ? 'S' : score >= 75 ? 'A' : score >= 60 ? 'B' : 'C';
+  lastResult = { score, rank, title, rows, chal, set: stageSet, n: stageNo, cleared: stageCleared, task: level.task, mode: S.mode, kiri: kirikaeshi(), time: st.time, hits: st.hits };
+  $('#rShare').disabled = false;
   $('#rank').textContent = rank;
   $('#rank').style.color = { S:'#f2c14e', A:'#5ccf8a', B:'#6fb3e8', C:'#e88' }[rank];
   $('#score').textContent = `${score} 点`;
@@ -2565,6 +2589,9 @@ $('#resumeBtn').addEventListener('click', closeMenu);
 $('#rRetry').addEventListener('click', () => inChallenge() ? startChallenge(1) : resetPlayer());
 $('#rNew').addEventListener('click', buildLevel);
 $('#rDemo').addEventListener('click', requestDemo);
+$('#rShare').addEventListener('click', shareResult);
+$('#shareClose').addEventListener('click', () => $('#sharePv').classList.add('off'));
+$('#sharePv').addEventListener('click', e => { if (e.target.id === 'sharePv') $('#sharePv').classList.add('off'); });
 $('#rCompare').addEventListener('click', compareWithDemo);
 $('#rMenu').addEventListener('click', openMenu);
 
@@ -2878,6 +2905,100 @@ function compareWithDemo(){
   } else lines.push('最後に枠へ入れるとき、ハンドルを大きく切らずに入れていました。');
   lines.push('<b>緑の枠</b>が理想の止め位置です。');
   $('#tips').innerHTML = lines.join('<br>');
+}
+
+// ---------------- 結果を SNS に共有 ----------------
+// 上から見た走った跡・点数・アプリ名を1枚の画像（1080×1350、Instagram の縦長にも合う 4:5）にまとめ、
+// アプリは端末の共有画面、ウェブはブラウザの共有（使えないときは画像の保存と X への投稿）で送る
+let lastResult = null;
+const SHARE_URL = 'https://endomotoki.github.io/parking-game/';
+function shareTexts(r){
+  const best = r.cleared ? r.n : r.n - 1;
+  const what = r.chal ? (best ? `挑戦モード ${best} 番までクリア` : '挑戦モードに挑戦')
+    : r.n ? `${stageLabel(r.set, r.n)}「${SETS[r.set][r.n - 1].name}」${r.cleared ? 'クリア' : ''}`
+    : `${r.task === 'exit' ? '出庫' : { back:'バック駐車', front:'前向き駐車', either:'駐車', parallel:'縦列駐車' }[r.mode] || '駐車'}の練習`;
+  const head = r.chal ? (best ? `挑戦モード ${best} 番までクリア！` : '挑戦モードに挑戦！') : r.n ? `${stageLabel(r.set, r.n)}${r.cleared ? ' クリア！' : ''}` : '自由練習';
+  const sub = r.chal || !r.n ? (r.chal ? '' : what) : SETS[r.set][r.n - 1].name;
+  const text = r.chal ? `駐車練習の${what}！ #駐車練習 #駐車 ${SHARE_URL}`
+    : `駐車練習で${what}${r.hits ? '' : `：${r.score}点（${r.rank}）`}！ #駐車練習 #駐車 ${SHARE_URL}`;
+  return { head, sub, text };
+}
+// 走った跡を上から見た絵（W×H）を、今のリプレイの場面から描く
+function snapReplay(W, H){
+  const r = replay; if (!r) return null;
+  const N = r.frames.length; r.t = (N - 1) * REC_DT; stepReplay(0); updateScene(0);
+  const b = r.bounds, cx = (b.x0 + b.x1)/2, cz = (b.z0 + b.z1)/2;
+  const cam = new THREE.PerspectiveCamera(40, W/H, 0.5, 400), tn = Math.tan(20*D2R);
+  // 画面の上 = +x（リプレイと同じ向き）。縦（x）・横（z）の両方が収まる高さ
+  const h = Math.max(12, (b.x1 - b.x0)/(2*tn), (b.z1 - b.z0)/(2*tn*W/H)) * 1.05;
+  cam.up.set(1, 0, 0); cam.position.set(cx, h, cz); cam.lookAt(cx, 0, cz);
+  cam.layers.set(0); cam.layers.enable(6);
+  const rt = new THREE.WebGLRenderTarget(W, H);
+  mainR.setRenderTarget(rt); mainR.render(scene, cam); mainR.setRenderTarget(null);
+  const px = new Uint8Array(W*H*4); mainR.readRenderTargetPixels(rt, 0, 0, W, H, px); rt.dispose();
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) img.data.set(px.subarray((H - 1 - y)*W*4, (H - y)*W*4), y*W*4);   // 上下を戻す
+  g.putImageData(img, 0, 0);
+  return c;
+}
+function rr(g, x, y, w, h, r){ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function makeShareCard(){
+  const r = lastResult, W = 1080, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), F = 'system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif';
+  const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1d2127'); bg.addColorStop(1, '#0e1013'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  const t = shareTexts(r);
+  // 見出し
+  g.fillStyle = '#f08a3c'; g.font = `800 44px ${F}`; g.fillText('駐車練習', 60, 92);
+  g.fillStyle = '#8b929a'; g.font = `600 28px ${F}`; g.fillText('ミラーとバックモニターで駐車の練習', 262, 90);
+  g.fillStyle = '#fff'; g.font = `800 64px ${F}`; g.fillText(t.head, 60, 190);
+  if (t.sub) { g.fillStyle = '#c9ced4'; g.font = `600 38px ${F}`; g.fillText(t.sub, 60, 248); }
+  // 点数（挑戦モードは番号）
+  const rankColor = { S:'#f2c14e', A:'#5ccf8a', B:'#6fb3e8', C:'#e88' }[r.rank];
+  g.textAlign = 'right';
+  if (r.chal) { g.fillStyle = '#f2c14e'; g.font = `800 120px ${F}`; g.fillText(`${r.cleared ? r.n : r.n - 1}`, W - 60, 220); g.font = `700 34px ${F}`; g.fillStyle = '#c9ced4'; g.fillText('番まで', W - 60, 262); }
+  else { g.fillStyle = rankColor; g.font = `800 130px ${F}`; g.fillText(r.rank, W - 60, 214); g.fillStyle = '#fff'; g.font = `700 40px ${F}`; g.fillText(`${r.score} 点`, W - 60, 262); }
+  g.textAlign = 'left';
+  // 走った跡
+  const px = 60, py = 300, pw = W - 120, ph = 820;
+  const snap = snapReplay(pw, ph);
+  g.save(); rr(g, px, py, pw, ph, 28); g.clip();
+  if (snap) g.drawImage(snap, px, py); else { g.fillStyle = '#2a2f36'; g.fillRect(px, py, pw, ph); }
+  g.restore();
+  // 走った跡の凡例
+  g.font = `600 26px ${F}`;
+  const leg = (x, col, text) => { g.fillStyle = 'rgba(14,16,20,.75)'; rr(g, x, py + 20, 150, 46, 23); g.fill(); g.fillStyle = col; g.fillRect(x + 18, py + 41, 34, 6); g.fillStyle = '#fff'; g.fillText(text, x + 62, py + 52); };
+  leg(px + 20, '#48d6ff', '前進'); leg(px + 182, '#ff8a2a', '後退');
+  // 成績
+  if (!r.chal) {
+    const chips = [`切り返し ${r.kiri}回`, `${r.time.toFixed(1)} 秒`, r.hits ? `接触 ${r.hits}回` : '接触なし'];
+    let x = 60; g.font = `700 32px ${F}`;
+    for (const ch of chips) { const w = g.measureText(ch).width + 48; g.fillStyle = '#2a2f36'; rr(g, x, 1148, w, 64, 32); g.fill(); g.fillStyle = '#e6e9ec'; g.fillText(ch, x + 24, 1191); x += w + 16; }
+  }
+  // 宣伝
+  g.fillStyle = '#8b929a'; g.font = `600 30px ${F}`; g.fillText('無料で遊べる駐車の練習ゲーム', 60, 1282);
+  g.fillStyle = '#f08a3c'; g.font = `700 30px ${F}`; g.textAlign = 'right'; g.fillText('「駐車練習」で検索', W - 60, 1282); g.textAlign = 'left';
+  return { canvas: c, text: t.text };
+}
+async function shareResult(){
+  if (!lastResult || !replay) return;
+  const btn = $('#rShare'); btn.disabled = true;
+  try {
+    const { canvas, text } = makeShareCard();
+    track('share', lastResult.n ? { set: lastResult.set, stage: lastResult.n } : {});
+    if (APP) { appPost({ type:'share', image: canvas.toDataURL('image/jpeg', 0.9), text }); return; }
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const file = new File([blob], 'parking-result.png', { type:'image/png' });
+    if (navigator.canShare && navigator.canShare({ files:[file] })) {
+      try { await navigator.share({ files:[file], text }); } catch(e) {}
+      return;
+    }
+    // ブラウザの共有が使えないとき：画像を見せて、保存と X への投稿を選べるように
+    const url = URL.createObjectURL(blob);
+    $('#sharePvImg').src = url; $('#shareSave').href = url;
+    $('#shareX').onclick = () => window.open('https://x.com/intent/post?text=' + encodeURIComponent(text), '_blank', 'noopener');
+    $('#sharePv').classList.remove('off');
+  } finally { setTimeout(() => { btn.disabled = false; }, 800); }
 }
 
 // ---------------- お手本（自動運転） ----------------

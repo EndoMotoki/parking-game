@@ -77,6 +77,20 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: Web からのメッセージ
+    private func shareResult(image: UIImage, text: String) {
+        guard let root = UIApplication.shared.rootViewController else { return }
+        let vc = UIActivityViewController(activityItems: [image, text], applicationActivities: nil)
+        // iPad は吹き出しで出すので、出す場所（画面の右上あたり）を決めておく
+        if let pop = vc.popoverPresentationController {
+            pop.sourceView = root.view
+            pop.sourceRect = CGRect(x: root.view.bounds.maxX - 80, y: 80, width: 1, height: 1)
+        }
+        vc.completionWithItemsHandler = { activity, done, _, _ in
+            if done { Telemetry.log("share_done", ["to": activity?.rawValue ?? ""]) }
+        }
+        root.present(vc, animated: true)
+    }
+
     func handle(_ msg: [String: Any]) {
         switch msg["type"] as? String {
         case "ready":
@@ -130,6 +144,11 @@ final class AppModel: ObservableObject {
         case "event":
             // ゲーム側の出来事（ステージ開始・結果など）を Analytics に記録
             if let name = msg["name"] as? String { Telemetry.log(name, msg["params"] as? [String: Any] ?? [:]) }
+        case "share":
+            // 結果の画像と文章を、端末の共有画面（X・LINE・Instagram・写真に保存など）で送る
+            guard let str = msg["image"] as? String, let comma = str.firstIndex(of: ","),
+                  let data = Data(base64Encoded: String(str[str.index(after: comma)...])), let image = UIImage(data: data) else { break }
+            shareResult(image: image, text: msg["text"] as? String ?? "")
         case "restore":
             Task { await store.restore() }
         case "openURL":
