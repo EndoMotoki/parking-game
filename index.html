@@ -116,6 +116,11 @@ body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))):n
 @keyframes badgeIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
 .card h1{margin:0 0 14px;font-size:20px;font-weight:600;letter-spacing:.02em}
 .opt{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:10px;margin:8px 0}
+.opt.touchOpt{display:none}
+.checks label.touchOpt{display:none}
+body.touch.ctrlShift .checks label.touchOpt{display:flex}   /* クリープはシフトレバー操作のときだけ */
+body.touch .opt.touchOpt{display:grid}
+body.ctrlShift .ctrlSimpleOnly, body:not(.ctrlShift) .ctrlShiftOnly{display:none}
 .opt>label{font-size:12px;color:var(--muted)}
 .seg{display:flex;background:#0f1114;border-radius:8px;padding:3px;gap:2px}
 .seg button{flex:1 1 0;padding:7px 4px;border:0;border-radius:6px;background:transparent;color:#aab1b9;font-size:13px;cursor:pointer}
@@ -339,12 +344,37 @@ body.touch .keys-only{display:none}
   width:min(38vh,160px,44vw);height:min(38vh,160px,44vw);z-index:8;touch-action:none;border-radius:50%}
 #tWheel svg{width:100%;height:100%;display:block;pointer-events:none;opacity:.85}
 #tWheel.active svg{opacity:1}
+#tWheelMark{fill:#f08a3c}
+#tWheel .needle{fill:#f08a3c}
+#tWheel.straight #tWheelMark, #tWheel.straight .needle{fill:#5ccf8a}
 #tPedals{position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:8;
   display:grid;grid-template-columns:auto auto;grid-template-rows:1fr 1fr;gap:6px}
 #tPedals .tbtn{width:min(19vh,80px,22vw);font-size:13px;display:flex;align-items:center;justify-content:center}
 #tFwd,#tRev{height:min(19vh,76px)}
 #tBrake{grid-row:1 / span 2;grid-column:1}
 #tBrake.down{background:rgba(239,91,91,.7)}
+/* シフトレバー式（S.ctrl = 'shift'）：レバー・ブレーキ・アクセル */
+#tShift, #tAccel{display:none}
+body.ctrlShift #tFwd, body.ctrlShift #tRev, body.ctrlShift #tSlow{display:none}
+body.ctrlShift #tPedals{grid-template-columns:auto auto auto;grid-template-rows:1fr;height:calc(2*min(19vh,76px) + 6px)}
+body.ctrlShift #tShift, body.ctrlShift #tBrake, body.ctrlShift #tAccel{grid-row:1;height:100%}
+body.ctrlShift #tShift{display:block;grid-column:1;width:min(15vh,58px,15vw);touch-action:none}
+body.ctrlShift #tBrake{grid-column:2}
+body.ctrlShift #tAccel{display:flex;grid-column:3;width:min(14vh,54px,14vw);background:rgba(14,16,20,.62)}
+body.ctrlShift #tAccel.down{background:rgba(92,207,138,.75);color:#111}
+#tGate{position:relative;height:100%;border-radius:12px;background:rgba(14,16,20,.62);display:flex;flex-direction:column;justify-content:space-around;align-items:center;
+  font-weight:800;font-size:14px;color:#8b929a;padding:4px 0;box-sizing:border-box}
+#tGate::before{content:'';position:absolute;left:50%;top:12%;bottom:12%;width:4px;margin-left:-2px;border-radius:2px;background:#0b0c0e}
+#tGate span{position:relative;z-index:1;width:100%;text-align:center;line-height:1;pointer-events:none}
+#tGate span.on{color:#fff}
+#tGate span.on[data-g="R"]{color:var(--accent)}
+#tKnob{position:absolute;left:50%;width:70%;height:24%;margin-left:-35%;border-radius:9px;z-index:0;pointer-events:none;
+  background:linear-gradient(#5a616a,#3a4048);box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.25);transition:top .08s ease-out}
+#tShift.drag #tKnob{transition:none}
+#tShift.nudge #tGate{animation:leverNudge .9s ease-out}
+@keyframes leverNudge{0%,40%,80%{box-shadow:0 0 0 3px #ffd23f}20%,60%,100%{box-shadow:0 0 0 0 rgba(255,210,63,0)}}
+body.ctrlShift.portrait #tPedals .tbtn{font-size:11px}
+body.ctrlShift.portrait #tShift{width:14vw} body.ctrlShift.portrait #tBrake{width:19vw} body.ctrlShift.portrait #tAccel{width:13vw}
 #tSlow{position:fixed;right:calc(10px + env(safe-area-inset-right));z-index:8;
   bottom:calc(10px + env(safe-area-inset-bottom) + min(38vh,160px) + 12px);padding:6px 10px;font-size:12px}
 #tSlow.on{background:rgba(92,207,138,.75);color:#111}
@@ -502,16 +532,33 @@ body.exitTask #tDone:not(.retry){display:none}
 
 <div id="touchUI">
   <div id="tWheel">
-    <svg viewBox="-50 -50 100 100"><g id="tWheelG">
-      <circle r="44" fill="none" stroke="#dfe3e8" stroke-width="8"/>
-      <circle r="11" fill="#dfe3e8"/>
-      <rect x="-44" y="-3" width="88" height="6" fill="#dfe3e8"/>
-      <rect x="-3" y="0" width="6" height="44" fill="#dfe3e8"/>
-      <rect x="-5" y="-50" width="10" height="11" rx="2" fill="#f08a3c"/>
-    </g></svg>
+    <svg viewBox="-56 -56 112 112">
+      <!-- タイヤの向き（動かない目盛り）：真ん中で緑 -->
+      <path d="M-46.8 -27 A54 54 0 0 1 46.8 -27" fill="none" stroke="rgba(14,16,20,.55)" stroke-width="6" stroke-linecap="round"/>
+      <line x1="0" y1="-57" x2="0" y2="-50" stroke="#8b929a" stroke-width="2"/>
+      <g id="tWheelNeedle"><circle cx="0" cy="-54" r="3.6" class="needle"/></g>
+      <g id="tWheelG">
+        <!-- リム（革巻き） -->
+        <circle r="41" fill="none" stroke="#24282e" stroke-width="11"/>
+        <circle r="46.2" fill="none" stroke="#4a5059" stroke-width="1.2"/>
+        <circle r="35.8" fill="none" stroke="#4a5059" stroke-width="1.2"/>
+        <path d="M-34 -23 A41 41 0 0 1 -23 -34 M34 -23 A41 41 0 0 0 23 -34" fill="none" stroke="#30353c" stroke-width="11"/>
+        <!-- スポーク（3本） -->
+        <path d="M-36.5 1 L-15 -3 L-13 11 L-35 13 Z" fill="#8e959e" stroke="#2a2e34" stroke-width="1.2"/>
+        <path d="M36.5 1 L15 -3 L13 11 L35 13 Z" fill="#8e959e" stroke="#2a2e34" stroke-width="1.2"/>
+        <path d="M-8 14 L8 14 L6 37 L-6 37 Z" fill="#7d848d" stroke="#2a2e34" stroke-width="1.2"/>
+        <!-- 中央（エアバッグ） -->
+        <rect x="-16" y="-13" width="32" height="28" rx="10" fill="#3b4047" stroke="#5a6069" stroke-width="1.5"/>
+        <circle cy="1" r="5" fill="none" stroke="#c9ced4" stroke-width="2"/>
+        <!-- 12時の目印（まっすぐのとき緑） -->
+        <rect id="tWheelMark" x="-3.5" y="-46.5" width="7" height="11" rx="1.5"/>
+      </g>
+    </svg>
   </div>
   <div id="tPedals">
+    <div id="tShift" aria-label="シフトレバー"><div id="tGate"><span data-g="P">P</span><span data-g="R">R</span><span data-g="D">D</span><i id="tKnob"></i></div></div>
     <button class="tbtn" id="tBrake" data-hold="Space">ブレーキ</button>
+    <button class="tbtn" id="tAccel" data-hold="Accel">アクセル</button>
     <button class="tbtn" id="tFwd" data-hold="KeyW">前進</button>
     <button class="tbtn" id="tRev" data-hold="KeyS">後退</button>
   </div>
@@ -574,6 +621,9 @@ body.exitTask #tDone:not(.retry){display:none}
 
     <div id="setPane" hidden>
     <details class="more"><summary>詳細設定</summary>
+      <div class="opt touchOpt" data-key="ctrl"><label>操作</label><div class="seg">
+        <button data-v="shift">シフトレバー</button><button data-v="simple">前進・後退ボタン</button>
+      </div></div>
       <div class="opt" data-key="cam"><label>視点</label><div class="seg">
         <button data-v="top">見下ろし</button><button data-v="chase">追従</button><button data-v="driver">運転席</button>
       </div></div>
@@ -588,11 +638,12 @@ body.exitTask #tDone:not(.retry){display:none}
         <label><input type="checkbox" id="o-autoCenter" checked> ハンドル自動戻り</label>
         <label><input type="checkbox" id="o-sound" checked> センサー音</label>
         <label><input type="checkbox" id="o-turnGuide"> ハンドルを切る目安（自由練習の入庫）</label>
+        <label class="touchOpt"><input type="checkbox" id="o-creep"> クリープ（D・R でアクセルなしでもゆっくり進む）</label>
       </div>
     </details>
 
     <details class="more"><summary>操作方法</summary>
-      <div class="keys touch-only">ハンドルを指で回し、「前進」「後退」を押している間だけ進みます。</div>
+      <div class="keys touch-only"><span class="ctrlShiftOnly">ハンドルを指で回します。シフトレバーを D（前進）か R（後退）に入れ、「アクセル」を押している間だけ進みます。止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">ハンドルを指で回し、「前進」「後退」を押している間だけ進みます。</span></div>
       <div class="keys keys-only">
         <kbd>W</kbd><kbd>S</kbd> 前進・後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ<br>
         <kbd>Enter</kbd> 完了　<kbd>R</kbd> やり直し　<kbd>Esc</kbd> メニュー
@@ -624,7 +675,7 @@ body.exitTask #tDone:not(.retry){display:none}
       <section class="tut-slide">
         <svg viewBox="0 0 150 110"><circle cx="46" cy="58" r="34" fill="none" stroke="#d9dde2" stroke-width="7"/><circle cx="46" cy="58" r="8" fill="#d9dde2"/><line x1="12" y1="58" x2="80" y2="58" stroke="#d9dde2" stroke-width="5"/><line x1="46" y1="58" x2="46" y2="92" stroke="#d9dde2" stroke-width="5"/><rect x="40" y="20" width="12" height="9" rx="2" fill="#f08a3c"/><rect x="96" y="30" width="22" height="58" rx="5" fill="#2e3238"/><rect x="122" y="30" width="22" height="27" rx="5" fill="#2e3238"/><rect x="122" y="61" width="22" height="27" rx="5" fill="#2e3238"/><text x="133" y="48" font-size="9" fill="#d9dde2" text-anchor="middle">前</text><text x="133" y="79" font-size="9" fill="#d9dde2" text-anchor="middle">後</text></svg>
         <h2>操作のしかた</h2>
-        <p class="touch-only">左下のハンドルを指で回し、右下の「前進」「後退」を押している間だけ進みます。止まるときは「ブレーキ」。スマホは<b>横向き</b>にすると、ミラーやハンドルが大きくなって遊びやすくなります。</p>
+        <p class="touch-only"><span class="ctrlShiftOnly">左下のハンドルを指で回します。右下のシフトレバーを D（前進）か R（後退）に入れ、「アクセル」を押している間だけ進みます。止まるときは「ブレーキ」。</span><span class="ctrlSimpleOnly">左下のハンドルを指で回し、右下の「前進」「後退」を押している間だけ進みます。止まるときは「ブレーキ」。</span>スマホは<b>横向き</b>にすると、ミラーやハンドルが大きくなって遊びやすくなります。</p>
         <p class="keys-only"><kbd>W</kbd> 前進　<kbd>S</kbd> 後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ。<kbd>Shift</kbd> を押しながらだとゆっくり進みます。</p>
         <p>枠に入って止まったら「完了」で採点します。ミラーをタップすると角度を調整できます。</p>
       </section>
@@ -736,7 +787,7 @@ const CAM_MODES = ['top','topRot','chase','driver'];
 const CAM_LABEL = { top:'見下ろし（固定）', topRot:'見下ろし（車基準）', chase:'追従', driver:'運転席' };
 
 // ---------------- 設定 ----------------
-const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top', turnGuide:false,
+const S = { slot:'any', task:'park', avm:true, backSound:'beep', mirror:{ L:{yaw:0,pitch:0}, R:{yaw:0,pitch:0} }, mode:'either', crowd:'normal', car:'std', width:'std', aisle:'std', cam:'top', turnGuide:false, ctrl:'shift', creep:false,
   guide:true, highlight:true, autoCenter:true, mirrorTilt:true, sound:true, showMirrors:true };
 try { Object.assign(S, JSON.parse(localStorage.getItem('parkingSettings') || '{}')); } catch(e) {}
 // 「どちらでも」を追加したとき、それまで保存されていたバック／前向きは一度だけ「どちらでも」に切り替える
@@ -986,7 +1037,9 @@ const poolTex = glowTex((g, w, h) => {
 const glowMat = (tex, opacity) => new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(opacity, opacity, opacity), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });   // 黒は足しても変わらない。明るさは色で調整
 const LAMP = {
   head: new THREE.MeshBasicMaterial({ color:0xfff6d8 }),
-  tail: new THREE.MeshBasicMaterial({ color:0xff2a2a }),     // ブレーキ
+  tail: new THREE.MeshBasicMaterial({ color:0xff3b3b }),     // ブレーキ
+  tailOff: new THREE.MeshLambertMaterial({ color:0x7a1414 }), // 昼の尾灯（消えている）
+  brakeGlow: (() => { const m = glowMat(poolTex, 1); m.color.setRGB(0.9, 0.08, 0.06); return m; })(),
   tailDim: new THREE.MeshBasicMaterial({ color:0xb01c1c }),  // 夜の尾灯
   rev: new THREE.MeshBasicMaterial({ color:0xffffff }),
   street: new THREE.MeshBasicMaterial({ color:0xffe6b0 }),
@@ -998,7 +1051,8 @@ let nightOn = false;
 function setCarLamps(m, { night = false, brake = false, rev = false } = {}){
   const u = m.userData;
   u.heads.forEach(o => o.material = night ? LAMP.head : mat(0xfff6d0));
-  u.tails.forEach(o => o.material = brake ? LAMP.tail : night ? LAMP.tailDim : mat(0xc81e1e));
+  u.tails.forEach(o => o.material = brake ? LAMP.tail : night ? LAMP.tailDim : LAMP.tailOff);
+  if (u.brakeGlow) u.brakeGlow.visible = brake;
   u.revs.forEach(o => o.material = rev ? LAMP.rev : mat(0xd8d8d8));
   u.beam.visible = night;
   u.revBeam.visible = night && rev;
@@ -1027,6 +1081,8 @@ function buildCarMesh(spec, color, isPlayer){
   for (const sx of [-1, 1]) {
     const hl = box(0.34, 0.12, 0.05, 0xfff6d0); hl.position.set(sx*(spec.wid/2 - 0.28), clr + bh*0.7, spec.len/2); g.add(hl); heads.push(hl);
     const tl = box(0.30, 0.12, 0.05, 0xc81e1e); tl.position.set(sx*(spec.wid/2 - 0.26), clr + bh*0.7, -spec.len/2); g.add(tl); tails.push(tl);
+    // 上から見ても点いているのが分かるように、トランクの角にも同じ灯りを回り込ませる
+    const tt = box(0.30, 0.02, 0.16, 0xc81e1e); tt.position.set(sx*(spec.wid/2 - 0.26), clr + bh + 0.011, -spec.len/2 + 0.08); g.add(tt); tails.push(tt);
     const rl = box(0.12, 0.1, 0.05, 0xd8d8d8); rl.position.set(sx*(spec.wid/2 - 0.52), clr + bh*0.7, -spec.len/2 - 0.005); g.add(rl); revs.push(rl);
   }
   // 地面を照らす光（夜だけ表示）
@@ -1034,6 +1090,9 @@ function buildCarMesh(spec, color, isPlayer){
   beam.position.set(0, 0.03, spec.len/2 - 0.2 + 5.5); beam.visible = false; beam.renderOrder = 2; g.add(beam);
   const revBeam = new THREE.Mesh(revGeo, LAMP.revBeam); revBeam.rotation.set(-Math.PI/2, 0, 0);
   revBeam.position.set(0, 0.03, -spec.len/2 + 0.1 - 2.25); revBeam.visible = false; revBeam.renderOrder = 2; g.add(revBeam);
+  // ブレーキを踏んでいる間、車の後ろの地面を赤く照らす（自分の車だけ。昼でも分かるように）
+  let brakeGlow = null;
+  if (isPlayer) { brakeGlow = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), LAMP.brakeGlow); brakeGlow.rotation.x = -Math.PI/2; brakeGlow.position.set(0, 0.035, -spec.len/2 - 0.55); brakeGlow.visible = false; brakeGlow.renderOrder = 2; g.add(brakeGlow); }
   // ナンバープレート
   const np1 = box(0.33, 0.17, 0.03, 0xf4f4f4); np1.position.set(0, clr + bh*0.35, spec.len/2 + 0.01); g.add(np1);
   const np2 = box(0.33, 0.17, 0.03, 0xf4f4f4); np2.position.set(0, clr + bh*0.45, -spec.len/2 - 0.01); g.add(np2);
@@ -1054,7 +1113,7 @@ function buildCarMesh(spec, color, isPlayer){
   // 影
   const sh = new THREE.Mesh(new THREE.PlaneGeometry(spec.wid + 0.25, spec.len + 0.25), shadowMat);
   sh.rotation.x = -Math.PI/2; sh.position.y = 0.02; g.add(sh);
-  g.userData = { fw, heads, tails, revs, beam, revBeam, cabin, roof, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
+  g.userData = { fw, heads, tails, revs, beam, revBeam, brakeGlow, cabin, roof, mirrorY, mirrorZ, cabinRearZ: spec.cabinZ - cl/2, cabinFrontZ: spec.cabinZ + cl/2, cabinTop: clr+bh+ch };
   return g;
 }
 
@@ -1597,6 +1656,61 @@ document.querySelectorAll('[data-hold]').forEach(b => {
   b.addEventListener('pointerdown', on);
   b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
 });
+// シフトレバー：つまんで上下に動かす（または P・R・N・D の位置をタップ）。離したところのギアに入る
+const GEARS = ['P', 'R', 'D'];
+const shiftMode = () => IS_TOUCH && S.ctrl !== 'simple';
+function applyCtrl(){ document.body.classList.toggle('ctrlShift', shiftMode()); }
+function knobTo(i){ $('#tKnob').style.top = `${(i + 0.5) / GEARS.length * 100 - 12}%`; }
+const shiftLever = { drag:false, id:null, idx:0 };
+(function(){
+  const el = $('#tShift'), gate = $('#tGate');
+  const idxAt = e => { const r = gate.getBoundingClientRect(); return clamp(Math.floor((e.clientY - r.top) / r.height * GEARS.length), 0, GEARS.length - 1); };
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch(_) {}
+    shiftLever.drag = true; shiftLever.id = e.pointerId; shiftLever.idx = Math.max(0, GEARS.indexOf(st.gear));
+    el.classList.add('drag'); move(e);
+  });
+  const move = e => {
+    if (!shiftLever.drag || e.pointerId !== shiftLever.id) return;
+    const i = idxAt(e);
+    if (i !== shiftLever.idx) { leverTick(); shiftLever.idx = i; }   // 段を越えるたびに「カチ」
+    knobTo(i);
+  };
+  el.addEventListener('pointermove', move);
+  const end = e => {
+    if (!shiftLever.drag || e.pointerId !== shiftLever.id) return;
+    shiftLever.drag = false; shiftLever.id = null; el.classList.remove('drag');
+    tryShift(GEARS[shiftLever.idx]);
+  };
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); el.addEventListener('lostpointercapture', end);
+})();
+function tryShift(g){
+  if (!st || g === st.gear) { knobTo(Math.max(0, GEARS.indexOf(st ? st.gear : 'P'))); return; }
+  // ブレーキを踏まなくても動かせる。走っている向きと逆のギアに入れたときは、車がいったん止まってから動き出す
+  if (game !== 'play') { knobTo(Math.max(0, GEARS.indexOf(st.gear))); return; }
+  setGear(g); leverClunk();
+  if (navigator.vibrate) navigator.vibrate(12);
+}
+// レバーの音：段を越えるときの軽い「カチ」と、入ったときの「カチャッ」（ノイズを短く鳴らして作る）
+let noiseBuf = null;
+function clickNoise(t, dur, freq, vol){
+  if (!actx) return;
+  if (!noiseBuf) { noiseBuf = actx.createBuffer(1, Math.floor(actx.sampleRate*0.08), actx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; }
+  const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 1.4;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(actx.destination); src.start(t); src.stop(t + dur + 0.01);
+}
+function leverTick(){ if (actx) clickNoise(actx.currentTime, 0.03, 3200, 0.18); }
+function leverClunk(){
+  if (!actx) return;
+  const t = actx.currentTime;
+  clickNoise(t, 0.04, 2200, 0.32); clickNoise(t + 0.035, 0.06, 900, 0.28);
+  const o = actx.createOscillator(), g = actx.createGain();   // 低い「コトッ」
+  o.type = 'sine'; o.frequency.setValueAtTime(150, t + 0.03); o.frequency.exponentialRampToValueAtTime(80, t + 0.12);
+  g.gain.setValueAtTime(0.16, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+  o.connect(g).connect(actx.destination); o.start(t + 0.03); o.stop(t + 0.16);
+}
 // アプリが裏に回った・メニューを開いたなどで指の情報が途切れたときは、ハンドルとペダルを放したことにする
 function releaseTouchInputs(){
   if (typeof pinchPts !== 'undefined') pinchPts.clear();
@@ -1878,18 +1992,42 @@ function physics(dt){
   if (fwd && !st.prevFwd) st.fwdFromStop = Math.abs(st.v) < 0.03;
   if (back && !st.prevBack) st.backFromStop = Math.abs(st.v) < 0.03;
   st.prevFwd = fwd; st.prevBack = back;
-  st.braking = !!brake;
-  if (brake) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
-  else if (fwd) {
-    if (st.v < -0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
-    else if (st.gear === 'R' && !st.fwdFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
-    else { setGear('D'); st.v = st.v > maxF ? toward0(st.v, drag*dt) : Math.min(maxF, st.v + acc*dt); }
-  } else if (back) {
-    if (st.v > 0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
-    else if (st.gear === 'D' && !st.backFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
-    else { setGear('R'); st.v = st.v < -maxB ? toward0(st.v, drag*dt) : Math.max(-maxB, st.v - acc*dt); }
-  } else { st.v = toward0(st.v, drag*dt); st.shiftT = 0; }
-  if ((fwd || back) && !st.started) st.started = true;
+  if (shiftMode()) {
+    // シフトレバー：D・R に入れてアクセルを踏んでいる間だけ進む。設定でクリープをオンにすると、アクセルなしでもゆっくり進む
+    const accel = isDown('TAccel'), dir = st.gear === 'D' ? 1 : st.gear === 'R' ? -1 : 0;
+    st.braking = !!brake || (dir !== 0 && st.v*dir < -0.03) || (st.gear === 'P' && Math.abs(st.v) > 0.03);   // 逆のギア・P で止まっていく間も点ける
+    if (brake) st.v = toward0(st.v, brk*dt);
+    else if (st.gear === 'P') st.v = toward0(st.v, brk*2*dt);
+    else {
+      const sv = st.v*dir, top = dir > 0 ? 3.3 : 2.0;
+      if (sv < -0.001) st.v = toward0(st.v, brk*dt);
+      else if (accel) st.v = sv < top ? dir*Math.min(top, sv + acc*dt) : dir*Math.max(top, sv - drag*dt);
+      else if (S.creep) { const cr = dir > 0 ? 0.9 : 0.7; st.v = sv < cr ? dir*Math.min(cr, sv + 0.9*dt) : dir*Math.max(cr, sv - drag*dt); }   // クリープ：前進 約3km/h・後退 約2.5km/h
+      else st.v = toward0(st.v, drag*dt);   // アクセルを離すと止まっていく
+    }
+    // P のままアクセルかブレーキを踏んだら、そのたびに知らせてレバーを光らせる
+    const pedal = accel || !!brake;
+    if (pedal && !st.prevPedal && st.gear === 'P' && game === 'play') {
+      showGoalText('シフトレバーをDかRに入れましょう');
+      const g = $('#tShift'); g.classList.remove('nudge'); void g.offsetWidth; g.classList.add('nudge');
+    }
+    st.prevPedal = pedal;
+    if (Math.abs(st.v) > 0.02 && !st.started) st.started = true;
+  } else {
+    // 前進・後退ボタン：反対向きのボタンで減速しているときもブレーキランプを点ける
+    st.braking = !!brake || (fwd && st.v < -0.03) || (back && st.v > 0.03);
+    if (brake) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
+    else if (fwd) {
+      if (st.v < -0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
+      else if (st.gear === 'R' && !st.fwdFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
+      else { setGear('D'); st.v = st.v > maxF ? toward0(st.v, drag*dt) : Math.min(maxF, st.v + acc*dt); }
+    } else if (back) {
+      if (st.v > 0.03) { st.v = toward0(st.v, brk*dt); st.shiftT = 0; }
+      else if (st.gear === 'D' && !st.backFromStop && st.shiftT < SHIFT_DELAY) { st.v = 0; st.shiftT += dt; }
+      else { setGear('R'); st.v = st.v < -maxB ? toward0(st.v, drag*dt) : Math.max(-maxB, st.v - acc*dt); }
+    } else { st.v = toward0(st.v, drag*dt); st.shiftT = 0; }
+    if ((fwd || back) && !st.started) st.started = true;
+  }
   // 自転車モデル
   const n = { ...st };
   n.h = st.h + st.v / C.wb * Math.tan(st.delta) * dt;
@@ -2259,6 +2397,7 @@ const freeAnim = (() => {
   return { sync };
 })();
 function syncMenu(){
+  applyCtrl();
   const par = S.mode === 'parallel', ex = S.task === 'exit';
   const mb = document.querySelectorAll('.opt[data-key="mode"] button');
   mb[0].textContent = ex ? 'バックで出る' : 'バック';
@@ -2272,13 +2411,13 @@ function syncMenu(){
   document.querySelectorAll('.opt[data-key]').forEach(o => {
     o.querySelectorAll('button').forEach(b => b.classList.toggle('on', S[o.dataset.key] === b.dataset.v));
   });
-  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide']) $('#o-' + k).checked = S[k];
+  for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide','creep']) $('#o-' + k).checked = S[k];
   freeAnim.sync();
 }
 document.querySelectorAll('.opt[data-key]').forEach(o => {
   o.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S[o.dataset.key] = b.dataset.v; syncMenu(); saveSettings(); }));
 });
-for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
+for (const k of ['guide','highlight','autoCenter','mirrorTilt','sound','avm','turnGuide','creep']) $('#o-' + k).addEventListener('change', e => { S[k] = e.target.checked; saveSettings(); });
 // 自由練習（メニューで選んだ設定）で始める
 function startGame(){ leaveStage(); beginPlay(); track('free_start', { mode:S.mode, task:S.task, car:S.car }); }
 function startStage(set, n){
@@ -2443,7 +2582,17 @@ function updateHUD(ev, son){
   const tire = st.delta / D2R;
   $('#sonar').classList.toggle('on', son.some(d => d < SONAR_RANGE));
   son.forEach((d, i) => { const c = sonarColor(d); const p = $('#son' + i); if (p) p.setAttribute('stroke', c); const q = $('#tson' + i); if (q) q.setAttribute('stroke', c); });
-  if (IS_TOUCH) $('#tWheelG').setAttribute('transform', `rotate(${-wheelDeg})`);
+  if (IS_TOUCH) {
+    $('#tWheelG').setAttribute('transform', `rotate(${-wheelDeg})`);
+    // タイヤの向き（ハンドルは1回転半まで回るので、目印だけでは真ん中か分かりにくい）
+    const frac = st.delta / C.maxSteer, straight = Math.abs(frac) < 0.02;
+    $('#tWheelNeedle').setAttribute('transform', `rotate(${-frac*60})`);
+    $('#tWheel').classList.toggle('straight', straight);
+    if (shiftMode()) {
+      if (!shiftLever.drag) knobTo(Math.max(0, GEARS.indexOf(st.gear)));
+      document.querySelectorAll('#tGate span').forEach(sp => sp.classList.toggle('on', sp.dataset.g === st.gear));
+    }
+  }
   const isDriver = CAM_MODES[camIdx] === 'driver';
   if (document.body.classList.contains('driver') !== isDriver) { document.body.classList.toggle('driver', isDriver); resize(); }
   if (isDriver) {
@@ -2621,7 +2770,7 @@ function textbookPath(front){
 // B：ハンドルを切る目安。最初のステージ（と、設定でオンにした自由練習の入庫）で、次に止める・ハンドルを切る位置に車の形の枠を出す
 let guide = null, guideIdx = 0;
 const guideWanted = () => level && level.task !== 'exit' && !inChallenge() &&
-  (stageNo ? stageSet === 'normal' && [1, 2, 3, 7].includes(stageNo) : !!S.turnGuide);
+  (stageNo ? stageSet === 'normal' && stageNo === 1 : !!S.turnGuide);
 function clearGuide(){ if (guide && guide.mesh) { world.remove(guide.mesh); disposeGroup(guide.mesh); } guide = null; $('#cue').classList.remove('on'); document.body.classList.remove('cueOn'); }
 function updateGuide(){
   if (!level) return;
