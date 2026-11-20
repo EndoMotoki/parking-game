@@ -2008,7 +2008,7 @@ function physics(dt){
     // P のままアクセルかブレーキを踏んだら、そのたびに知らせてレバーを光らせる
     const pedal = accel || !!brake;
     if (pedal && !st.prevPedal && st.gear === 'P' && game === 'play') {
-      showGoalText('シフトレバーを D（前進）か R（後退）に入れましょう');
+      showGoalText('シフトレバーをDかRに入れましょう');
       const g = $('#tShift'); g.classList.remove('nudge'); void g.offsetWidth; g.classList.add('nudge');
     }
     st.prevPedal = pedal;
