@@ -2977,7 +2977,9 @@ function compareWithDemo(){
 // 上から見た走った跡・点数・アプリ名を1枚の画像（1080×1350、Instagram の縦長にも合う 4:5）にまとめ、
 // アプリは端末の共有画面、ウェブはブラウザの共有（使えないときは画像の保存と X への投稿）で送る
 let lastResult = null;
-const SHARE_URL = 'https://endomotoki.github.io/parking-game/';
+// 共有に付けるリンク：iOS アプリは App Store、Android アプリは Google Play、ウェブはウェブ版
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.endomotoki.parking';
+const SHARE_URL = IS_ANDROID_APP ? PLAY_STORE_URL : APP_BRIDGE ? APP_STORE_URL : 'https://endomotoki.github.io/parking-game/';
 function shareTexts(r){
   const best = r.cleared ? r.n : r.n - 1;
   const what = r.chal ? (best ? `挑戦モード ${best} 番までクリア` : '挑戦モードに挑戦')
