@@ -163,9 +163,11 @@ class MainActivity : AppCompatActivity() {
             type = "image/jpeg"
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_TEXT, text)
+            // 共有画面（プレビュー）と送り先のアプリの両方が画像を読めるように、ClipData にも入れて読み取りを許可する
+            clipData = android.content.ClipData.newRawUri(null, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(send, "結果を共有"))
+        startActivity(Intent.createChooser(send, "結果を共有").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
         Telemetry.log("share_open", null)
     }
 
