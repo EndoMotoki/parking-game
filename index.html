@@ -118,8 +118,8 @@ body.inApp #menuHead:not(:has(.badgeChip)):not(:has(#promoChip:not([hidden]))):n
 .opt{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:10px;margin:8px 0}
 .opt.touchOpt{display:none}
 .checks label.touchOpt{display:none}
-body.touch.ctrlShift .checks label.touchOpt{display:flex}   /* クリープはシフトレバー操作のときだけ */
-body.touch .opt.touchOpt{display:grid}
+body.touch.ctrlShift .checks label.touchOpt, body.gamepad.ctrlShift .checks label.touchOpt{display:flex}   /* クリープはシフトレバー操作のときだけ */
+body.touch .opt.touchOpt, body.gamepad .opt.touchOpt{display:grid}   /* パソコンでもコントローラーをつないでいればシフトレバー式を選べる */
 body.ctrlShift .ctrlSimpleOnly, body:not(.ctrlShift) .ctrlShiftOnly{display:none}
 .opt>label{font-size:12px;color:var(--muted)}
 .seg{display:flex;background:#0f1114;border-radius:8px;padding:3px;gap:2px}
@@ -658,7 +658,7 @@ body.exitTask #tDone:not(.retry){display:none}
         <kbd>W</kbd><kbd>S</kbd> 前進・後退　<kbd>A</kbd><kbd>D</kbd> ハンドル　<kbd>Space</kbd> ブレーキ<br>
         <kbd>Enter</kbd> 完了　<kbd>R</kbd> やり直し　<kbd>Esc</kbd> メニュー
       </div>
-      <div class="keys g">ゲームパッド：ZR 前進　ZL 後退　B ブレーキ　Lスティック ハンドル　A 完了</div>
+      <div class="keys g">ゲームパッド：<span class="ctrlShiftOnly">十字キー↑↓ シフト（P・R・D）　ZR アクセル　B/ZL ブレーキ</span><span class="ctrlSimpleOnly">ZR 前進　ZL 後退　B ブレーキ</span>　Lスティック ハンドル　A 完了</div>
       <div class="keys g">軌跡の色：<span style="color:#ffd23f">黄</span> 後ろの角　<span style="color:#48d6ff">水色</span> 前の角　<span style="color:#b48cff">紫</span> 内輪差　<span style="color:#ef5b5b">赤</span> 接触しそう</div>
     </details>
     </div>
@@ -694,7 +694,7 @@ body.exitTask #tDone:not(.retry){display:none}
         <h2>プロコンでも遊べます</h2>
         <p>プロコン（Switch Pro コントローラー）などのゲームパッドが使えます。</p>
         <p>つなぎ方：プロコン上部の小さなボタンをランプが点滅するまで長押しし、スマホやタブレットの「設定」→「Bluetooth」で「Pro Controller」を選びます。つないだらどれかボタンを押してください。</p>
-        <p class="small">ZR 前進　ZL 後退　B ブレーキ　L スティック ハンドル　L 微速　A 完了　＋ メニュー</p>
+        <p class="small"><span class="ctrlShiftOnly">十字キー↑↓ シフト（P・R・D）　ZR アクセル　B/ZL ブレーキ</span><span class="ctrlSimpleOnly">ZR 前進　ZL 後退　B ブレーキ</span>　L スティック ハンドル　L 微速　A 完了　＋ メニュー</p>
       </section>
       <section class="tut-slide">
         <svg viewBox="0 0 150 110"><g><rect x="20" y="18" width="110" height="20" rx="10" fill="#2e3238"/><circle cx="118" cy="28" r="8" fill="#5ccf8a"/><rect x="20" y="46" width="110" height="20" rx="10" fill="#2e3238"/><circle cx="32" cy="56" r="8" fill="#8b939c"/><rect x="20" y="74" width="110" height="20" rx="10" fill="#2e3238"/><circle cx="118" cy="84" r="8" fill="#5ccf8a"/></g></svg>
@@ -1713,7 +1713,8 @@ document.querySelectorAll('[data-hold]').forEach(b => {
 });
 // シフトレバー：つまんで上下に動かす（または P・R・N・D の位置をタップ）。離したところのギアに入る
 const GEARS = ['P', 'R', 'D'];
-const shiftMode = () => IS_TOUCH && S.ctrl !== 'simple';
+let padOn = false;   // コントローラーがつながっているか（パソコンでもシフトレバー式で遊べるように）
+const shiftMode = () => (IS_TOUCH || padOn) && S.ctrl !== 'simple';
 function applyCtrl(){ document.body.classList.toggle('ctrlShift', shiftMode()); }
 function knobTo(i){ $('#tKnob').style.top = `${(i + 0.5) / GEARS.length * 100 - 12}%`; }
 const shiftLever = { drag:false, id:null, idx:0 };
@@ -1900,8 +1901,8 @@ $('#mClose').addEventListener('click', () => toggleMirrorPad(false));
 // 標準マッピング（位置基準）: 0=下(B) 1=右(A) 2=左(Y) 3=上(X) 4=L 5=R 6=ZL 7=ZR 8=− 9=+ 12-15=十字キー
 const pad = { connected:false, steer:0, lookX:0, prev:[] };
 const dz = (v, d = 0.15) => Math.abs(v) < d ? 0 : Math.sign(v) * (Math.abs(v) - d) / (1 - d);
-addEventListener('gamepadconnected', e => { showToastInfo('コントローラーを接続しました'); document.body.classList.add('gamepad'); });
-addEventListener('gamepaddisconnected', () => { showToastInfo('コントローラーが切断されました'); document.body.classList.remove('gamepad'); });
+addEventListener('gamepadconnected', e => { showToastInfo('コントローラーを接続しました'); document.body.classList.add('gamepad'); padOn = true; applyCtrl(); });
+addEventListener('gamepaddisconnected', () => { showToastInfo('コントローラーが切断されました'); document.body.classList.remove('gamepad'); padOn = false; applyCtrl(); });
 function pollGamepad(dt){
   const list = navigator.getGamepads ? navigator.getGamepads() : [];
   const gp = [...list].find(g => g && g.connected);
@@ -1924,6 +1925,11 @@ function pollGamepad(dt){
   if (edge(8)) handleKey('KeyR');       // −: やり直し
   if (tutorialOpen) { if (edge(15)) tutGo(tutIdx + 1, true); if (edge(14)) tutGo(tutIdx - 1); if (edge(9) || edge(0)) closeTutorial(); }
   else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : menuStart()) : handleKey('Escape');   // +: 設定 / 開始
+  // シフトレバー式：十字キー↑で P 側、↓で D 側へ 1 段ずつ（ミラー調整・説明・お手本選びの間は使わない）
+  if (shiftMode() && game === 'play' && !mirrorAdj.open && !tutorialOpen && !demoPickOpen && (edge(12) || edge(13))) {
+    const i = clamp(GEARS.indexOf(st.gear) + (edge(13) ? 1 : -1), 0, GEARS.length - 1);
+    if (GEARS[i] !== st.gear) { leverTick(); tryShift(GEARS[i]); }
+  }
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
   if (edge(10)) handleKey('KeyG');      // 左スティック押し込み: 軌跡ガイド
   if (mirrorAdj.open) { if (edge(4)) selectMirror('L'); if (edge(5)) selectMirror('R'); }
@@ -2040,7 +2046,7 @@ function setGear(g){
 }
 function physics(dt){
   const ar = !mirrorAdj.open;  // ミラー調整中は矢印キーをミラーに使う
-  const fwd = isDown('KeyW','TKeyW','GFwd') || (ar && isDown('ArrowUp')), back = isDown('KeyS','TKeyS','GBack') || (ar && isDown('ArrowDown')), brake = isDown('Space','TSpace','GBrake');
+  let fwd = isDown('KeyW','TKeyW','GFwd') || (ar && isDown('ArrowUp')), back = isDown('KeyS','TKeyS','GBack') || (ar && isDown('ArrowDown')), brake = isDown('Space','TSpace','GBrake');
   const left = isDown('KeyA') || (ar && isDown('ArrowLeft')), right = isDown('KeyD') || (ar && isDown('ArrowRight')), slow = slowToggle || isDown('ShiftLeft','ShiftRight','GSlow');
   // ハンドル
   const steerIn = (left ? 1 : 0) - (right ? 1 : 0);
@@ -2062,7 +2068,12 @@ function physics(dt){
   st.prevFwd = fwd; st.prevBack = back;
   if (shiftMode()) {
     // シフトレバー：D・R に入れてアクセルを踏んでいる間だけ進む。設定でクリープをオンにすると、アクセルなしでもゆっくり進む
-    const accel = isDown('TAccel'), dir = st.gear === 'D' ? 1 : st.gear === 'R' ? -1 : 0;
+    // コントローラーは ZR がアクセル、ZL もブレーキ。キーボードの W/S（↑↓）は押した向きのギアに自動で入れて進む
+    const kF = isDown('KeyW') || (ar && isDown('ArrowUp')), kB = isDown('KeyS') || (ar && isDown('ArrowDown'));
+    if (kF && !kB && st.gear !== 'D' && game === 'play') setGear('D');
+    if (kB && !kF && st.gear !== 'R' && game === 'play') setGear('R');
+    if (isDown('GBack')) brake = true;
+    const accel = isDown('TAccel', 'GFwd') || kF || kB, dir = st.gear === 'D' ? 1 : st.gear === 'R' ? -1 : 0;
     st.braking = !!brake || (dir !== 0 && st.v*dir < -0.03) || (st.gear === 'P' && Math.abs(st.v) > 0.03);   // 逆のギア・P で止まっていく間も点ける
     if (brake) st.v = toward0(st.v, brk*dt);
     else if (st.gear === 'P') st.v = toward0(st.v, brk*2*dt);
