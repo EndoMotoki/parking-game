@@ -599,7 +599,7 @@ body.exitTask #tDone:not(.retry){display:none}
     </div>
     <div id="chalPane" hidden>
       <div id="chalBest"><b>挑戦モード</b><span id="chalRec"></span></div>
-      <p id="chalNote" class="keys">ランダムな駐車場で、だんだん難しくなります<br>60点以上でクリア → 次へ<br>ぶつける・60点未満 → 終わり<br>やり直し・お手本は使えません<br>途中でやめても続きから再開できます</p>
+      <p id="chalNote" class="keys">ランダムな駐車場で、だんだん難しくなります<br>60点以上でクリア → 次へ<br>ぶつける・60点未満 → 終わり<br>挑戦中は、やり直し・お手本は使えません（失敗したあとはお手本を見られます）<br>途中でやめても続きから再開できます</p>
       <button class="bigbtn" id="chalResume" hidden>続きから</button>
       <button class="bigbtn" id="chalBtn">挑戦スタート</button>
     </div>
@@ -1606,10 +1606,10 @@ function handleKey(code){
     return;
   }
   if (game === 'demo') {
-    if (code === 'KeyR' || code === 'Enter') resetPlayer();
+    if (code === 'KeyR' || code === 'Enter') afterDemo();
     else if (code === 'KeyO') requestDemo();
     else if (code === 'KeyC') { camIdx = (camIdx + 1) % CAM_MODES.length; orbitHint(); }
-    else if (code === 'KeyN') buildLevel();
+    else if (code === 'KeyN' && !inChallenge()) buildLevel();
     else if (code === 'Escape') openMenu();
     return;
   }
@@ -1617,6 +1617,7 @@ function handleKey(code){
     if (inChallenge()) {
       if (code === 'Enter' && !$('#rNext').hidden) goNext();
       else if ((code === 'Enter' || code === 'KeyR') && !$('#rRetry').hidden) startChallenge(1);
+      else if (code === 'KeyO' && !$('#rDemo').hidden) requestDemo();
       else if (code === 'Escape') openMenu();
       return;
     }
@@ -2288,10 +2289,12 @@ function finishResult(score, rows, tips, title){
   const hasNext = stageCleared && (chal || stageNo < list.length);
   $('#rNext').hidden = !hasNext;
   $('#rNext').textContent = chal ? `次へ（挑戦 ${stageNo + 1}）` : '次のステージへ';
-  // 挑戦モード：同じ配置のやり直し・別の配置・お手本はなし。失敗したら「最初から挑戦」
+  // 挑戦モード：同じ配置のやり直し・別の配置はなし。失敗したら「最初から挑戦」。
+  // 失敗したときは挑戦が終わっているので、その配置のお手本だけは見られる（見たあとも、その配置は自分で走れない）
   $('#rRetry').hidden = chal && stageCleared;
   $('#rRetry').textContent = chal ? '最初から挑戦' : 'もう一度';
-  $('#rNew').hidden = $('#rDemo').hidden = chal;
+  $('#rNew').hidden = chal;
+  $('#rDemo').hidden = chal && stageCleared;
   $('#rCompare').hidden = chal || st.rec.length < 4 || level.task === 'exit'; $('#rCompare').disabled = false; $('#rCompare').textContent = '目安と比べる';
   $('#rRetry').classList.toggle('primary', !hasNext);
   $('#resTitle').textContent = title;
@@ -2354,7 +2357,8 @@ function closeMenu(){
   if (S.cam !== cam) { camIdx = Math.max(0, CAM_MODES.indexOf(S.cam)); orbitHint(); }
   $('#menu').classList.add('off');
   document.body.classList.toggle('hidden-mirrors', !S.showMirrors);
-  if (menuFrom === 'demo') resetPlayer();          // お手本の途中だったら、自分で練習する状態に
+  if (menuFrom === 'demo' && inChallenge()) game = 'demo';   // 挑戦モードの失敗後のお手本は、そのまま続きを見る
+  else if (menuFrom === 'demo') resetPlayer();     // お手本の途中だったら、自分で練習する状態に
   else { game = menuFrom; if (game === 'result') $('#result').classList.remove('off'); }
   menuFrom = null;
 }
@@ -2693,7 +2697,8 @@ function updateHUD(ev, son){
   if ($('#rearView').classList.contains('noavm') === S.avm) { $('#rearView').classList.toggle('noavm', !S.avm); resize(); }
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
-  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' + (demoPref ? `（${demoPref === 'front' ? '前向き' : 'バック'}）` : '') : pad.connected ? 'お手本おわり。− で自分で練習' : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
+  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' + (demoPref ? `（${demoPref === 'front' ? '前向き' : 'バック'}）` : '') : inChallenge() ? (pad.connected ? 'お手本おわり。− で最初から挑戦' : IS_TOUCH ? 'お手本おわり。「最初から挑戦」で再スタート' : 'お手本おわり。R で最初から挑戦 / O でもう一度')
+    : pad.connected ? 'お手本おわり。− で自分で練習' : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
   else if (game !== 'play') showMsg('', '');
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
@@ -3171,8 +3176,12 @@ function planDemoM(MARGIN){
 }
 let demo = null, demoPref = null, demoPickOpen = false;
 // お手本ボタン：「どちらでも」の入庫では、バックと前向きのどちらのお手本を見るか選ぶ
+// 挑戦モードで失敗したあとのお手本か（結果画面、またはそこから始めたお手本の最中）
+const chalFailDemo = () => inChallenge() && !stageCleared && (game === 'result' || game === 'demo');
+// お手本を見終わったあと：挑戦モードでは同じ配置を自分で走らせず、最初から挑戦し直す
+const afterDemo = () => inChallenge() ? startChallenge(1) : resetPlayer();
 function requestDemo(){
-  if (inChallenge()) return;
+  if (inChallenge() && !chalFailDemo()) return;
   if (level.task !== 'exit' && level.anyDir) {
     releaseTouchInputs();
     demoPickOpen = true; $('#demoPick').classList.remove('off');
@@ -3428,12 +3437,15 @@ function loop(t){
   const ev = evaluate();
   if (game === 'play' && ev.exit && ev.done) showResult(ev);
   // ぶつけたら（0点なので）完了の代わりに「やり直し」を出す。挑戦モードはぶつけた時点で終わるので出さない
+  // 挑戦モードで失敗したあとのお手本が終わったら、同じボタンで「最初から挑戦」
   const tDone = $('#tDone'), crashed = game === 'play' && st.hits > 0 && !inChallenge();
-  if (crashed !== tDone.classList.contains('retry')) {
-    tDone.classList.toggle('retry', crashed);
-    tDone.dataset.act = crashed ? 'KeyR' : 'Enter'; tDone.textContent = crashed ? 'やり直し' : '完了';
+  const chalAgain = game === 'demo' && inChallenge() && !!demo && demo.done;
+  const label = chalAgain ? '最初から挑戦' : crashed ? 'やり直し' : '完了';
+  if (tDone.textContent !== label) {
+    tDone.classList.toggle('retry', crashed || chalAgain);
+    tDone.dataset.act = crashed || chalAgain ? 'KeyR' : 'Enter'; tDone.textContent = label;
   }
-  tDone.classList.toggle('ready', crashed || (game === 'play' && !ev.exit && ev.ready));
+  tDone.classList.toggle('ready', crashed || chalAgain || (game === 'play' && !ev.exit && ev.ready));
   const son = sonar();
   updateBackSound(dt, Math.min(son[3], son[4], son[5]));
   // センサー音
