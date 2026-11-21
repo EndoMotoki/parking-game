@@ -57,6 +57,9 @@ body.parallel #stats .curbStat{display:inline}
 .gears div{width:20px;text-align:center;border-radius:4px;color:#555c64}
 .gears div.on{color:var(--text);background:rgba(255,255,255,.12)}
 .gears div.on[data-g="R"]{color:#111;background:var(--accent)}
+body.ctrlShift:not(.touch) .gears{flex-direction:column;font-size:14px}   /* パソコンでコントローラーのシフト操作：十字キー↑↓と同じ縦並び（上が P） */
+body.ctrlShift:not(.touch) .gears div{width:24px;line-height:20px;color:#8a9099}
+body.ctrlShift:not(.touch) .gears div.on:not([data-g="R"]){color:var(--text)}
 #speed{font-size:22px;font-weight:600;color:var(--text);line-height:1}
 #speed small{font-size:11px;color:var(--muted);font-weight:400;margin-left:3px}
 #wheelbox{bottom:12px;right:12px;display:flex;gap:10px;align-items:center;padding:6px 8px}
@@ -1926,8 +1929,9 @@ function pollGamepad(dt){
   if (tutorialOpen) { if (edge(15)) tutGo(tutIdx + 1, true); if (edge(14)) tutGo(tutIdx - 1); if (edge(9) || edge(0)) closeTutorial(); }
   else if (edge(9)) game === 'menu' ? (menuFrom ? closeMenu() : menuStart()) : handleKey('Escape');   // +: 設定 / 開始
   // シフトレバー式：十字キー↑で P 側、↓で D 側へ 1 段ずつ（ミラー調整・説明・お手本選びの間は使わない）
-  if (shiftMode() && game === 'play' && !mirrorAdj.open && !tutorialOpen && !demoPickOpen && (edge(12) || edge(13))) {
-    const i = clamp(GEARS.indexOf(st.gear) + (edge(13) ? 1 : -1), 0, GEARS.length - 1);
+  const toP = edge(12), toD = edge(13);
+  if (shiftMode() && game === 'play' && !mirrorAdj.open && !tutorialOpen && !demoPickOpen && (toP || toD)) {
+    const i = clamp(GEARS.indexOf(st.gear) + (toD ? 1 : -1), 0, GEARS.length - 1);
     if (GEARS[i] !== st.gear) { leverTick(); tryShift(GEARS[i]); }
   }
   if (edge(11)) handleKey('KeyN');      // 右スティック押し込み: 新しい配置
@@ -2689,7 +2693,7 @@ function updateHUD(ev, son){
   if ($('#rearView').classList.contains('noavm') === S.avm) { $('#rearView').classList.toggle('noavm', !S.avm); resize(); }
   // メッセージ
   if (performance.now() < infoUntil) showMsg(infoText, 'warn');
-  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' + (demoPref ? `（${demoPref === 'front' ? '前向き' : 'バック'}）` : '') : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
+  else if (game === 'demo') showMsg(!demo ? 'お手本を計算中…' : !demo.done ? 'お手本' + (demoPref ? `（${demoPref === 'front' ? '前向き' : 'バック'}）` : '') : pad.connected ? 'お手本おわり。− で自分で練習' : IS_TOUCH ? 'お手本おわり。「やり直し」で自分で練習' : 'お手本おわり。R で自分で練習 / O でもう一度', 'ok');
   else if (game !== 'play') showMsg('', '');
   else if (ev.exit) {
     if (ev.inGoal && !ev.done) showMsg('通路に沿う向きにしてください', 'warn');
@@ -2697,7 +2701,7 @@ function updateHUD(ev, son){
     else if (!st.started) showMsg((stageNo ? `${stageLabel(stageSet, stageNo)}「${curStage().name}」：` : '') + '矢印の出口まで出しましょう', '');
     else showMsg('', '');
   }
-  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(IS_TOUCH ? '枠に入りました。「完了」で採点' : '枠に入りました。Enter で採点', 'ok');
+  else if (ev.ready && Math.abs(st.v) < 0.05) showMsg(pad.connected ? '枠に入りました。A で採点' : IS_TOUCH ? '枠に入りました。「完了」で採点' : '枠に入りました。Enter で採点', 'ok');
   else if (ev.ready) showMsg('枠に入っています。止まってください', 'ok');
   else if (ev.allIn && ev.flipped) showMsg('向きが逆です', 'warn');
   else if (ev.allIn) showMsg(`角度のずれ ${Math.abs(ad).toFixed(0)}°`, 'warn');
